@@ -1,86 +1,158 @@
-# CrackX — Road Damage Detection & Analysis
+# CrackX – Offline-First Road Damage Detection System
 
-CrackX is an AI-powered computer vision system for detecting and analyzing road surface damages such as cracks, potholes, and surface corruptions using deep learning. It is designed to help municipalities, researchers, and infrastructure teams automatically assess road conditions from images.
-
----
-
-## 🚀 Features
-
-- Detects multiple types of road damage:
-  - Longitudinal cracks
-  - Transverse cracks
-  - Alligator cracks
-  - Potholes
-  - Other surface corruptions
-- Trained using YOLO-based object detection.
-- Outputs bounding boxes with confidence scores.
-- Designed to scale for large road image datasets.
-- Can be extended to support:
-  - Severity scoring
-  - Repair prioritization
-  - Road Health Index computation
+CrackX is an offline-first mobile application that uses on-device AI to detect road damage and report issues efficiently, even in low or no internet connectivity areas. The system is designed for citizens, road safety officers, and municipal administrators, ensuring fast reporting, reliable syncing, and minimal network dependency.
 
 ---
 
-## 🧠 Model
+## Problem Statement
 
-- Architecture: YOLO (Ultralytics)
-- Input: Road surface images
-- Output: Bounding boxes + class labels + confidence scores
-- Training dataset: Custom labeled dataset of road damages
+Road damage often goes unreported or is delayed due to poor internet connectivity, manual reporting processes, and lack of real-time verification. CrackX addresses these challenges by enabling AI-powered road damage detection directly on the device and allowing reports to be created and stored fully offline.
 
 ---
 
-## 📂 Repository Structure
+## Core Design Principle
 
-CrackX/  
-├── model/ # Trained model files (best.pt)  
-├── predictions/ # Sample prediction outputs  
-├── CrackX_Approach.pdf # Detailed methodology & approach  
-├── Dataset_Link # Shortcut/link to dataset source  
-└── README.md # This file
+**Offline-first by default.**  
+Internet connectivity is used only when absolutely necessary.
 
 ---
 
-## 🔧 How It Works
+## Features
 
-1. Input road images are passed into the trained YOLO model.
-2. The model detects damage types and localizes them in the image.
-3. The output is saved as bounding box predictions with confidence values.
-4. These predictions can be used to build:
-   - Damage statistics
-   - Road condition reports
-   - Maintenance prioritization systems
+### Offline Features (Primary)
 
----
+- Road image capture using device camera
+- On-device AI detection using YOLO
+- Damage classification with bounding boxes
+- Confidence score display
+- GPS location capture and local storage
+- Multilingual user interface:
+  - Marathi
+  - Kannada
+  - Hindi
+  - English
+- Offline issue queue with sync status tracking
 
-## 📊 Use Cases
+### Online Features (Minimal)
 
-- Smart city infrastructure monitoring
-- Automated road inspection
-- Maintenance planning & optimization
-- Research in civil engineering and computer vision
-
----
-
-## 🛠️ Technologies Used
-
-- Python
-- PyTorch
-- Ultralytics YOLO
-- OpenCV
+- One-tap report synchronization
+- Zone and municipal area resolution (cached for offline use)
 
 ---
 
-## 📌 Future Improvements
+## User Roles
 
-- Severity scoring based on crack size and density
-- Repair priority ranking system
-- City-level Road Health Index
-- Real-time mobile or drone-based deployment
+### Citizen
+
+- Capture road damage photos offline
+- View instant AI detection results
+- Store reports locally without internet
+- Sync reports when connectivity is available
+
+### Road Safety Officer (RSO)
+
+**Offline**
+
+- View cached assigned issues
+- Upload repair proof photos
+- Update repair status (stored locally)
+
+**Online**
+
+- Sync updates with the server
+- Optional map view
+- Emergency contact activation
+
+_RSO contact details are hidden offline to prevent misuse._
+
+### Admin
+
+- Monitor AI model status
+- View reports and summaries
+- Zone-wise analytics
+- Track issue lifecycle and sync status
 
 ---
 
-## 📜 License
+## Application Flow
 
-This project is for academic and research purposes.
+1. Citizen captures road image (offline)
+2. AI model runs locally and detects damage
+3. GPS data is stored on-device
+4. Report is saved as Pending Sync
+5. User syncs when internet is available
+6. Zone is resolved and issue assigned to RSO
+7. RSO completes repair and uploads proof
+8. Admin monitors the full workflow
+
+---
+
+## Map Strategy
+
+- Uses Mapbox SDK
+- Municipal zone boundaries downloaded once
+- Zones cached locally for offline GPS-based detection
+- Internet required only for first-time setup and map updates
+
+---
+
+## Technology Stack
+
+### Frontend
+
+- React Native (Expo)
+- Runs on Android devices and Expo Web
+
+### AI / ML
+
+- YOLO-based object detection
+- Model converted to TensorFlow Lite / ONNX
+- Fully on-device inference
+
+### Local Storage
+
+- SQLite / AsyncStorage
+- Stores reports, images, GPS data, and sync status
+
+### Backend
+
+- Lightweight REST API
+- Single endpoint:
+  POST /sync-reports
+- Cloud storage for images and metadata
+
+---
+
+## Language Support
+
+- Offline preloaded translation files
+- Supported languages:
+- Marathi
+- Kannada
+- Hindi
+- English
+
+---
+
+## Advantages
+
+- Works in remote and low-connectivity areas
+- Faster reporting using on-device AI
+- Minimal bandwidth and backend usage
+- Scalable for municipal deployment
+- Privacy-friendly and cost-efficient
+
+---
+
+## Future Enhancements
+
+- Incremental AI model updates
+- Expanded damage categories
+- Advanced analytics dashboard
+- Smart city platform integration
+
+---
+
+## License
+
+Developed for academic, research, and civic-tech use.

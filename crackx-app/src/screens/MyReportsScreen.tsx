@@ -1,0 +1,345 @@
+import React, { useState, useEffect } from 'react';
+import {
+    View,
+    Text,
+    TouchableOpacity,
+    StyleSheet,
+    ScrollView,
+    Image,
+} from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { COLORS } from '../constants';
+import { Report } from '../types';
+import storageService from '../services/storage';
+import authService from '../services/auth';
+import { formatDate, getSeverityColor } from '../utils';
+import DashboardLayout from '../components/DashboardLayout';
+
+interface MyReportsScreenProps {
+    onNavigate: (screen: string) => void;
+    onBack: () => void;
+    onLogout: () => void;
+}
+
+export default function MyReportsScreen({ onNavigate, onBack, onLogout }: MyReportsScreenProps) {
+    const { t } = useTranslation();
+    const [reports, setReports] = useState<Report[]>([]);
+
+    useEffect(() => {
+        loadReports();
+    }, []);
+
+    const loadReports = async () => {
+        try {
+            const user = await authService.getCurrentUser();
+            if (user) {
+                const userReports = await storageService.getReportsByCitizen(user.id);
+                setReports(userReports.sort((a, b) =>
+                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                ));
+            }
+        } catch (error) {
+            console.error('Error loading reports:', error);
+        }
+    };
+
+    return (
+        <DashboardLayout
+            title={t('my_reports')}
+            role="citizen"
+            activeRoute="MyReports"
+            onNavigate={onNavigate}
+            onLogout={onLogout}
+        >
+            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+                {reports.length === 0 ? (
+                    <View style={styles.emptyState}>
+                        <Text style={styles.emptyIcon}>📭</Text>
+                        <Text style={styles.emptyText}>{t('no_reports')}</Text>
+                    </View>
+                ) : (
+                    reports.map((report) => (
+                        <View key={report.id} style={styles.reportCard}>
+                            {/* Photo */}
+                            {report.photoUri && (
+                                <Image source={{ uri: report.photoUri }} style={styles.reportImage} />
+                            )}
+
+                            {/* Header */}
+                            <View style={styles.reportHeader}>
+                                <View>
+                                    <Text style={styles.reportType}>
+                                        {report.aiDetection?.damageType || 'Unknown'}
+                                    </Text>
+                                    <Text style={styles.reportMode}>
+                                        {report.reportingMode === 'on-site' ? '📍 On-Site' : '🗺️ Remote'}
+                                    </Text>
+                                </View>
+                                {report.aiDetection && (
+                                    <View
+                                        style={[
+                                            styles.severityBadge,
+                                            { backgroundColor: getSeverityColor(report.aiDetection.severity) },
+                                        ]}
+                                    >
+                                        <Text style={styles.severityText}>
+                                            {report.aiDetection.severity}
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+
+                            {/* Location */}
+                            <View style={styles.locationSection}>
+                                <Text style={styles.locationLabel}>Location:</Text>
+                                <Text style={styles.locationText}>
+                                    {report.location.roadName || report.location.address || 'Unknown location'}
+                                </Text>
+                                {report.location.zone && (
+                                    <Text style={styles.zoneText}>Zone: {report.location.zone.toUpperCase()}</Text>
+                                )}
+                            </View>
+
+                            {/* AI Detection Results */}
+                            {report.aiDetection && (
+                                <View style={styles.aiSection}>
+                                    <Text style={styles.aiTitle}>AI Detection Results:</Text>
+                                    <View style={styles.aiRow}>
+                                        <Text style={styles.aiLabel}>Confidence:</Text>
+                                        <Text style={styles.aiValue}>
+                                            {(report.aiDetection.confidence * 100).toFixed(0)}%
+                                        </Text>
+                                    </View>
+                                </View>
+                            )}
+
+                            {/* Repair Proof (Work Done) */}
+                            {report.repairProofUri && (
+                                <View style={styles.repairSection}>
+                                    <View style={styles.repairHeader}>
+                                        <Text style={styles.repairTitle}>✅ {t('repair_completed')}</Text>
+                                        <Text style={styles.repairDate}>
+                                            {report.repairCompletedAt ? formatDate(report.repairCompletedAt) : ''}
+                                        </Text>
+                                    </View>
+                                    <Image source={{ uri: report.repairProofUri }} style={styles.repairImage} />
+                                </View>
+                            )}
+
+                            {/* Footer */}
+                            <View style={styles.reportFooter}>
+                                <Text style={styles.reportDate}>{formatDate(report.createdAt)}</Text>
+                                <View style={styles.badges}>
+                                    <Text
+                                        style={[
+                                            styles.statusBadge,
+                                            {
+                                                color:
+                                                    report.status === 'completed'
+                                                        ? COLORS.success
+                                                        : report.status === 'in-progress'
+                                                            ? COLORS.primary
+                                                            : COLORS.warning,
+                                            },
+                                        ]}
+                                    >
+                                        {report.status}
+                                    </Text>
+                                    <Text
+                                        style={[
+                                            styles.syncBadge,
+                                            {
+                                                color:
+                                                    report.syncStatus === 'synced'
+                                                        ? COLORS.success
+                                                        : COLORS.warning,
+                                            },
+                                        ]}
+                                    >
+                                        {report.syncStatus}
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+                    ))
+                )}
+            </ScrollView>
+        </DashboardLayout>
+    );
+}
+
+const styles = StyleSheet.create({
+    content: {
+        flex: 1,
+        padding: 16,
+    },
+    emptyState: {
+        backgroundColor: COLORS.white,
+        borderRadius: 16,
+        padding: 40,
+        alignItems: 'center',
+        marginTop: 40,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderStyle: 'dashed',
+    },
+    emptyIcon: {
+        fontSize: 64,
+        marginBottom: 16,
+        opacity: 0.5,
+    },
+    emptyText: {
+        fontSize: 16,
+        color: COLORS.gray,
+        fontWeight: '600',
+    },
+    reportCard: {
+        backgroundColor: COLORS.white,
+        borderRadius: 16,
+        marginBottom: 16,
+        overflow: 'hidden',
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: COLORS.secondary,
+    },
+    reportImage: {
+        width: '100%',
+        height: 200,
+    },
+    reportHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        padding: 16,
+        paddingBottom: 8,
+    },
+    reportType: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: COLORS.dark,
+        textTransform: 'capitalize',
+        marginBottom: 4,
+    },
+    reportMode: {
+        fontSize: 12,
+        color: COLORS.gray,
+    },
+    severityBadge: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 12,
+    },
+    severityText: {
+        color: COLORS.white,
+        fontSize: 11,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+    },
+    locationSection: {
+        paddingHorizontal: 16,
+        paddingBottom: 12,
+    },
+    locationLabel: {
+        fontSize: 12,
+        color: COLORS.gray,
+        marginBottom: 4,
+    },
+    locationText: {
+        fontSize: 14,
+        color: COLORS.dark,
+        marginBottom: 4,
+        fontWeight: '500',
+    },
+    zoneText: {
+        fontSize: 12,
+        color: COLORS.primary,
+        fontWeight: '700',
+    },
+    aiSection: {
+        paddingHorizontal: 16,
+        paddingBottom: 12,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.secondary,
+        paddingTop: 12,
+        backgroundColor: '#fafafa',
+    },
+    aiTitle: {
+        fontSize: 12,
+        color: COLORS.gray,
+        marginBottom: 8,
+        fontWeight: '600',
+    },
+    aiRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    aiLabel: {
+        fontSize: 14,
+        color: COLORS.dark,
+    },
+    aiValue: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: COLORS.primary,
+    },
+    reportFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border,
+    },
+    reportDate: {
+        fontSize: 12,
+        color: COLORS.gray,
+    },
+    badges: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    statusBadge: {
+        fontSize: 12,
+        fontWeight: '600',
+        textTransform: 'capitalize',
+    },
+    syncBadge: {
+        fontSize: 12,
+        fontWeight: '600',
+        textTransform: 'capitalize',
+    },
+    repairSection: {
+        marginTop: 12,
+        paddingHorizontal: 16,
+        paddingBottom: 16,
+        backgroundColor: '#f0fdf4', // Light green bg for repair proof
+        paddingTop: 12,
+    },
+    repairHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    repairTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: COLORS.success,
+    },
+    repairDate: {
+        fontSize: 12,
+        color: COLORS.gray,
+    },
+    repairImage: {
+        width: '100%',
+        height: 200,
+        borderRadius: 8,
+        borderWidth: 2,
+        borderColor: COLORS.success,
+    },
+});

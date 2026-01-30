@@ -1,0 +1,510 @@
+import React, { useState } from 'react';
+import {
+    View,
+    Text,
+    TouchableOpacity,
+    StyleSheet,
+    ScrollView,
+    Image,
+    Alert,
+    ActivityIndicator,
+    TextInput,
+} from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { useTranslation } from 'react-i18next';
+import { COLORS } from '../constants';
+import { ReportingMode, Report, Location as LocationType } from '../types';
+import locationService from '../services/location';
+import aiService from '../services/ai';
+import storageService from '../services/storage';
+import authService from '../services/auth';
+import { generateId } from '../utils';
+import { MapComponent } from '../components/MapComponent';
+import DashboardLayout from '../components/DashboardLayout';
+
+interface ReportDamageScreenProps {
+    onNavigate: (screen: string) => void;
+    onBack: () => void;
+    onSuccess: () => void;
+    onLogout: () => void;
+}
+
+export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLogout }: ReportDamageScreenProps) {
+    const { t } = useTranslation();
+    const [step, setStep] = useState<'mode' | 'photo' | 'location' | 'ai' | 'confirm'>('mode');
+    const [reportingMode, setReportingMode] = useState<ReportingMode>('on-site');
+    const [photoUri, setPhotoUri] = useState<string>('');
+    const [location, setLocation] = useState<LocationType | null>(null);
+    const [manualAddress, setManualAddress] = useState('');
+    const [aiResult, setAiResult] = useState<any>(null);
+    const [loading, setLoading] = useState(false);
+
+    const handleModeSelect = (mode: ReportingMode) => {
+        setReportingMode(mode);
+        setStep('photo');
+    };
+
+    const handleTakePhoto = async () => {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert(t('error'), 'Camera permission is required');
+            return;
+        }
+
+        const result = await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.8,
+        });
+
+        if (!result.canceled) {
+            setPhotoUri(result.assets[0].uri);
+            setStep('location');
+            if (reportingMode === 'on-site') {
+                captureLocation();
+            }
+        }
+    };
+
+    const handleChooseFromGallery = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert(t('error'), 'Media library permission is required');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.8,
+        });
+
+        if (!result.canceled) {
+            setPhotoUri(result.assets[0].uri);
+            setStep('location');
+            if (reportingMode === 'on-site') {
+                captureLocation();
+            }
+        }
+    };
+
+    const captureLocation = async () => {
+        setLoading(true);
+        try {
+            const loc = await locationService.getCurrentLocation();
+            if (loc) {
+                setLocation(loc);
+            } else {
+                Alert.alert(t('error'), 'Failed to get location. Please enable GPS.');
+            }
+        } catch (error) {
+            Alert.alert(t('error'), 'Failed to capture location');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleLocationConfirm = () => {
+        if (reportingMode === 'from-elsewhere' && !manualAddress) {
+            Alert.alert(t('error'), 'Please enter an address');
+            return;
+        }
+        setStep('ai');
+        runAIDetection();
+    };
+
+    const runAIDetection = async () => {
+        setLoading(true);
+        try {
+            const result = await aiService.detectDamage(photoUri);
+            setAiResult(result);
+            setStep('confirm');
+        } catch (error) {
+            Alert.alert(t('error'), 'AI detection failed');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSubmit = async () => {
+        setLoading(true);
+        try {
+            const user = await authService.getCurrentUser();
+            if (!user) {
+                Alert.alert(t('error'), 'User not found');
+                return;
+            }
+
+            const finalLocation: LocationType = reportingMode === 'on-site' && location
+                ? location
+                : {
+                    latitude: 0,
+                    longitude: 0,
+                    address: manualAddress,
+                    zone: 'zone1', // Default for manual entry
+                };
+
+            const report: Report = {
+                id: generateId(),
+                citizenId: user.id,
+                reportingMode,
+                location: finalLocation,
+                photoUri,
+                aiDetection: aiResult,
+                status: 'pending',
+                syncStatus: 'pending',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            };
+
+            await storageService.saveReport(report);
+            await storageService.addToSyncQueue(report.id);
+
+            Alert.alert(t('success'), t('report_submitted'));
+            onSuccess();
+        } catch (error) {
+            Alert.alert(t('error'), 'Failed to submit report');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <DashboardLayout
+            title={t('report_damage')}
+            role="citizen" // Assuming citizen for now
+            activeRoute="ReportDamage"
+            onNavigate={onNavigate}
+            onLogout={onLogout}
+        >
+            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+                {/* Step: Mode Selection */}
+                {step === 'mode' && (
+                    <View style={styles.stepContainer}>
+                        <Text style={styles.stepTitle}>{t('reporting_mode')}</Text>
+                        <TouchableOpacity
+                            style={styles.modeCard}
+                            onPress={() => handleModeSelect('on-site')}
+                        >
+                            <Text style={styles.modeIcon}>📍</Text>
+                            <Text style={styles.modeTitle}>{t('on_site')}</Text>
+                            <Text style={styles.modeDesc}>{t('on_site_desc')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.modeCard}
+                            onPress={() => handleModeSelect('from-elsewhere')}
+                        >
+                            <Text style={styles.modeIcon}>🗺️</Text>
+                            <Text style={styles.modeTitle}>{t('from_elsewhere')}</Text>
+                            <Text style={styles.modeDesc}>{t('from_elsewhere_desc')}</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {/* Step: Photo */}
+                {step === 'photo' && (
+                    <View style={styles.stepContainer}>
+                        <Text style={styles.stepTitle}>{t('take_photo')}</Text>
+                        {photoUri ? (
+                            <View>
+                                <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+                                <TouchableOpacity style={styles.button} onPress={handleTakePhoto}>
+                                    <Text style={styles.buttonText}>{t('retake_photo')}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            <View>
+                                <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
+                                    <Text style={styles.photoButtonIcon}>📸</Text>
+                                    <Text style={styles.photoButtonText}>{t('take_photo')}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.photoButton, styles.photoButtonSecondary]}
+                                    onPress={handleChooseFromGallery}
+                                >
+                                    <Text style={styles.photoButtonIcon}>🖼️</Text>
+                                    <Text style={styles.photoButtonText}>{t('choose_from_gallery')}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                    </View>
+                )}
+
+                {/* Step: Location */}
+                {step === 'location' && (
+                    <View style={styles.stepContainer}>
+                        <Text style={styles.stepTitle}>
+                            {reportingMode === 'on-site' ? t('current_location') : t('manual_location')}
+                        </Text>
+                        {loading ? (
+                            <ActivityIndicator size="large" color={COLORS.primary} />
+                        ) : reportingMode === 'on-site' ? (
+                            <View>
+                                {location && (
+                                    <>
+                                        <View style={styles.locationCard}>
+                                            <Text style={styles.locationText}>
+                                                📍 {location.roadName || 'Unknown Road'}
+                                            </Text>
+                                            <Text style={styles.locationSubtext}>
+                                                {location.area || 'Unknown Area'}
+                                            </Text>
+                                            <Text style={styles.locationSubtext}>
+                                                Zone: {location.zone}
+                                            </Text>
+                                        </View>
+
+                                        {/* Map Component */}
+                                        <View style={{ height: 300, marginBottom: 16 }}>
+                                            <MapComponent
+                                                latitude={location.latitude}
+                                                longitude={location.longitude}
+                                                interactive={false}
+                                            />
+                                        </View>
+                                    </>
+                                )}
+                                <TouchableOpacity style={styles.button} onPress={handleLocationConfirm}>
+                                    <Text style={styles.buttonText}>{t('confirm_address')}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            <View>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Enter road name and area"
+                                    value={manualAddress}
+                                    onChangeText={setManualAddress}
+                                    multiline
+                                />
+                                <TouchableOpacity style={styles.button} onPress={handleLocationConfirm}>
+                                    <Text style={styles.buttonText}>{t('continue')}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                    </View>
+                )}
+
+                {/* Step: AI Detection */}
+                {step === 'ai' && (
+                    <View style={styles.stepContainer}>
+                        <Text style={styles.stepTitle}>{t('analyzing_image')}</Text>
+                        <ActivityIndicator size="large" color={COLORS.primary} />
+                    </View>
+                )}
+
+                {/* Step: Confirm */}
+                {step === 'confirm' && aiResult && (
+                    <View style={styles.stepContainer}>
+                        <Text style={styles.stepTitle}>Review & Submit</Text>
+                        <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+
+                        <View style={styles.resultCard}>
+                            <Text style={styles.resultTitle}>{t('ai_detection')}</Text>
+                            <View style={styles.resultRow}>
+                                <Text style={styles.resultLabel}>{t('damage_type')}:</Text>
+                                <Text style={styles.resultValue}>{aiResult.damageType}</Text>
+                            </View>
+                            <View style={styles.resultRow}>
+                                <Text style={styles.resultLabel}>{t('confidence')}:</Text>
+                                <Text style={styles.resultValue}>
+                                    {(aiResult.confidence * 100).toFixed(0)}%
+                                </Text>
+                            </View>
+                            <View style={styles.resultRow}>
+                                <Text style={styles.resultLabel}>{t('severity')}:</Text>
+                                <Text
+                                    style={[
+                                        styles.resultValue,
+                                        {
+                                            color:
+                                                aiResult.severity === 'high'
+                                                    ? COLORS.severityHigh
+                                                    : aiResult.severity === 'medium'
+                                                        ? COLORS.severityMedium
+                                                        : COLORS.severityLow,
+                                        },
+                                    ]}
+                                >
+                                    {aiResult.severity}
+                                </Text>
+                            </View>
+                        </View>
+
+                        <TouchableOpacity
+                            style={[styles.button, loading && styles.buttonDisabled]}
+                            onPress={handleSubmit}
+                            disabled={loading}
+                        >
+                            <Text style={styles.buttonText}>
+                                {loading ? t('loading') : t('submit')}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </ScrollView>
+        </DashboardLayout>
+    );
+}
+
+const styles = StyleSheet.create({
+    content: {
+        flex: 1,
+    },
+    stepContainer: {
+        padding: 24,
+    },
+    stepTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: COLORS.dark,
+        marginBottom: 20,
+    },
+    modeCard: {
+        backgroundColor: COLORS.white,
+        borderRadius: 16,
+        padding: 24,
+        marginBottom: 16,
+        alignItems: 'center',
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: COLORS.secondary,
+    },
+    modeIcon: {
+        fontSize: 48,
+        marginBottom: 12,
+        color: COLORS.primary,
+    },
+    modeTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: COLORS.dark,
+        marginBottom: 8,
+    },
+    modeDesc: {
+        fontSize: 14,
+        color: COLORS.gray,
+        textAlign: 'center',
+    },
+    photoButton: {
+        backgroundColor: COLORS.primary,
+        borderRadius: 12,
+        padding: 24,
+        alignItems: 'center',
+        marginBottom: 16,
+        shadowColor: COLORS.primary,
+        shadowOpacity: 0.3,
+        shadowOffset: { width: 0, height: 4 },
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    photoButtonSecondary: {
+        backgroundColor: COLORS.white,
+        borderWidth: 2,
+        borderColor: COLORS.primary,
+    },
+    photoButtonIcon: {
+        fontSize: 48,
+        marginBottom: 8,
+    },
+    photoButtonText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: COLORS.white,
+    },
+    photoPreview: {
+        width: '100%',
+        height: 300,
+        borderRadius: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    locationCard: {
+        backgroundColor: COLORS.white,
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    locationText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: COLORS.dark,
+        marginBottom: 8,
+    },
+    locationSubtext: {
+        fontSize: 14,
+        color: COLORS.gray,
+        marginBottom: 4,
+    },
+    input: {
+        backgroundColor: COLORS.white,
+        borderRadius: 12,
+        padding: 16,
+        fontSize: 16,
+        marginBottom: 20,
+        minHeight: 100,
+        textAlignVertical: 'top',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    resultCard: {
+        backgroundColor: COLORS.white,
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 2,
+    },
+    resultTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: COLORS.dark,
+        marginBottom: 16,
+    },
+    resultRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+    },
+    resultLabel: {
+        fontSize: 14,
+        color: COLORS.gray,
+    },
+    resultValue: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: COLORS.dark,
+        textTransform: 'capitalize',
+    },
+    button: {
+        backgroundColor: COLORS.primary,
+        borderRadius: 12,
+        padding: 18,
+        alignItems: 'center',
+        shadowColor: COLORS.primary,
+        shadowOpacity: 0.3,
+        shadowOffset: { width: 0, height: 4 },
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    buttonDisabled: {
+        opacity: 0.6,
+    },
+    buttonText: {
+        color: COLORS.white,
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+});

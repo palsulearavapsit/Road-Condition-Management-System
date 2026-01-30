@@ -1,0 +1,70 @@
+{
+  "expo": {
+    "name": "CrackX",
+    "slug": "crackx-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2563eb"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "CrackX needs your location to accurately report road damages and route complaints to the correct municipal zone.",
+        "NSCameraUsageDescription": "CrackX needs camera access to capture photos of road damages.",
+        "NSPhotoLibraryUsageDescription": "CrackX needs access to your photo library to select damage photos."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2563eb"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
+      "package": "com.crackx.app",
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "CrackX needs your location to accurately report road damages and route complaints to the correct municipal zone."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "CrackX needs camera access to capture photos of road damages."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "CrackX needs access to your photo library to select damage photos."
+        }
+      ],
+      [
+        "@rnmapbox/maps",
+        {
+          "RNMapboxMapsImpl": "mapbox",
+          "RNMapboxMapsDownloadToken": false
+        }
+      ]
+    ]
+  }
+}

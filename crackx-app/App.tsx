@@ -17,6 +17,8 @@ import AdminHomeScreen from './src/screens/AdminHomeScreen';
 import ReportDamageScreen from './src/screens/ReportDamageScreen';
 import MyReportsScreen from './src/screens/MyReportsScreen';
 import AdminUserManagementScreen from './src/screens/AdminUserManagementScreen';
+import AdminHeatmapScreen from './src/screens/AdminHeatmapScreen';
+import AdminPointsManagementScreen from './src/screens/AdminPointsManagementScreen';
 
 type AppState =
   | 'loading'
@@ -28,7 +30,9 @@ type AppState =
   | 'admin-home'
   | 'report-damage'
   | 'my-reports'
-  | 'user-management';
+  | 'user-management'
+  | 'admin-heatmap'
+  | 'points-management';
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('loading');
@@ -129,6 +133,12 @@ export default function App() {
       case 'UserManagement':
         setAppState('user-management');
         break;
+      case 'Heatmap':
+        setAppState('admin-heatmap');
+        break;
+      case 'Points':
+        setAppState('points-management');
+        break;
       default:
         navigateToHome(userRole);
     }
@@ -188,6 +198,20 @@ export default function App() {
       case 'user-management':
         return (
           <AdminUserManagementScreen
+            onNavigate={handleNavigate}
+            onLogout={handleLogout}
+          />
+        );
+      case 'admin-heatmap':
+        return (
+          <AdminHeatmapScreen
+            onNavigate={handleNavigate}
+            onLogout={handleLogout}
+          />
+        );
+      case 'points-management':
+        return (
+          <AdminPointsManagementScreen
             onNavigate={handleNavigate}
             onLogout={handleLogout}
           />

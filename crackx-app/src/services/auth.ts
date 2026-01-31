@@ -24,7 +24,9 @@ class AuthService {
                 username,
                 role,
                 zone: role === 'rso' ? 'zone8' : undefined,
-                isApproved: true
+                isApproved: true,
+                points: 0,
+                adminPointsPool: role === 'admin' ? 10000 : 0
             };
         } else {
             // 2. Check Registered Users

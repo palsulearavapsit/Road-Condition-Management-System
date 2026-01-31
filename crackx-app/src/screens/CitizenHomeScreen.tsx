@@ -10,7 +10,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
-import { Report } from '../types';
+import { Report, User } from '../types';
 import storageService from '../services/storage';
 import syncService from '../services/sync';
 import authService from '../services/auth';
@@ -24,6 +24,7 @@ interface CitizenHomeScreenProps {
 export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeScreenProps) {
     const { t } = useTranslation();
     const [reports, setReports] = useState<Report[]>([]);
+    const [user, setUser] = useState<User | null>(null);
     const [syncStats, setSyncStats] = useState({ pendingSync: 0, synced: 0 });
     const [isOnline, setIsOnline] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -36,6 +37,7 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
         try {
             const user = await authService.getCurrentUser();
             if (user) {
+                setUser(user);
                 const userReports = await storageService.getReportsByCitizen(user.id);
                 setReports(userReports);
             }
@@ -86,6 +88,13 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
             }}
             onLogout={handleLogout}
         >
+            <View style={styles.walletBar}>
+                <View style={styles.pointsBadge}>
+                    <Ionicons name="star" size={16} color="#f59e0b" />
+                    <Text style={styles.pointsText}>{user?.points || 0} Points</Text>
+                </View>
+                <Text style={styles.welcomeText}>Welcome, {user?.username}!</Text>
+            </View>
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
                 {/* Status Card */}
                 <View style={styles.statusCard}>
@@ -366,4 +375,36 @@ const styles = StyleSheet.create({
         color: COLORS.gray,
         textAlign: 'center',
     },
+    walletBar: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: COLORS.white,
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: COLORS.secondary,
+    },
+    pointsBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fffbeb',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#fef3c7',
+    },
+    pointsText: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#b45309',
+        marginLeft: 6,
+    },
+    welcomeText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.dark,
+    }
 });

@@ -41,7 +41,9 @@ export default function Sidebar({ role, activeRoute, onNavigate, onLogout, onClo
                 ];
             case 'admin':
                 return [
-                    { id: 'Dashboard', label: t('admin_dashboard'), icon: '👨‍💼' },
+                    { id: 'Dashboard', label: t('admin_dashboard'), icon: '🏠' },
+                    { id: 'Heatmap', label: 'Disaster Heatmap', icon: '🔥' },
+                    { id: 'Points', label: 'Points Management', icon: '💎' },
                     { id: 'UserManagement', label: t('user_management'), icon: '👥' },
                 ];
             default:

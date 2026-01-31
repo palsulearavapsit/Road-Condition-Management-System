@@ -8,12 +8,13 @@ import {
     Alert,
     Modal,
     Image,
-    Platform
+    Platform,
+    TextInput
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
-import { Report } from '../types';
+import { Report, User } from '../types';
 import storageService from '../services/storage';
 import authService from '../services/auth';
 import { formatDate, getSeverityColor } from '../utils';
@@ -31,11 +32,14 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
     const [reports, setReports] = useState<Report[]>([]);
     const [sortBySeverity, setSortBySeverity] = useState(false);
     const [userZone, setUserZone] = useState<string>('');
+    const [user, setUser] = useState<User | null>(null);
 
     // Completion Modal State
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [repairPhoto, setRepairPhoto] = useState<string | null>(null);
+    const [materials, setMaterials] = useState<{ name: string; quantity: string; unit: string }[]>([]);
+    const [newMaterial, setNewMaterial] = useState({ name: '', quantity: '', unit: 'kg' });
     const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
@@ -54,6 +58,7 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
             const user = await authService.getCurrentUser();
             if (user && user.zone) {
                 setUserZone(user.zone);
+                setUser(user);
                 let zoneReports = await storageService.getReportsByZone(user.zone);
 
                 if (sortBySeverity) {
@@ -70,8 +75,6 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                 // Check if there are any new pending reports to notify about
                 const pending = zoneReports.filter(r => r.status === 'pending');
                 if (pending.length > 0) {
-                    // Simple logic: notify about the most recent one if we haven't already
-                    // (In a real app, track 'last notified' timestamp)
                     notificationService.scheduleRSOAssignmentNotification(
                         pending[0].id,
                         pending[0].location.roadName || 'Assigned Zone'
@@ -91,7 +94,23 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
     const initiateCompletion = (report: Report) => {
         setSelectedReport(report);
         setRepairPhoto(null);
+        setMaterials([]);
         setModalVisible(true);
+    };
+
+    const addMaterial = () => {
+        if (newMaterial.name && newMaterial.quantity) {
+            setMaterials([...materials, newMaterial]);
+            setNewMaterial({ name: '', quantity: '', unit: 'kg' });
+        } else {
+            Alert.alert(t('error'), 'Please fill material name and quantity');
+        }
+    };
+
+    const removeMaterial = (index: number) => {
+        const updated = [...materials];
+        updated.splice(index, 1);
+        setMaterials(updated);
     };
 
     const takeRepairPhoto = async () => {
@@ -119,6 +138,11 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
             return;
         }
 
+        if (materials.length === 0) {
+            Alert.alert(t('error'), 'Please add at least one material used');
+            return;
+        }
+
         setUploading(true);
         try {
             const report = await storageService.getReportById(selectedReport.id);
@@ -126,6 +150,8 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                 report.status = 'completed';
                 report.repairCompletedAt = new Date().toISOString();
                 report.repairProofUri = repairPhoto;
+                report.materialsUsed = materials;
+                report.rsoId = user?.username; // Tracking who solved it
 
                 await storageService.saveReport(report);
 
@@ -155,6 +181,13 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
             onNavigate={onNavigate}
             onLogout={handleLogout}
         >
+            <View style={styles.walletBar}>
+                <View style={styles.pointsBadge}>
+                    <Ionicons name="star" size={16} color="#f59e0b" />
+                    <Text style={styles.pointsText}>{user?.points || 0} Points</Text>
+                </View>
+                <Text style={styles.welcomeText}>RSO: {user?.username}</Text>
+            </View>
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
                 {/* Stats */}
                 <View style={styles.statsCard}>
@@ -302,6 +335,39 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                             </TouchableOpacity>
                         )}
 
+                        <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Material Inventory Tracking</Text>
+                        <View style={styles.materialInputRow}>
+                            <TextInput
+                                style={styles.materialInput}
+                                placeholder="Material (e.g. Asphalt)"
+                                value={newMaterial.name}
+                                onChangeText={(text) => setNewMaterial({ ...newMaterial, name: text })}
+                            />
+                            <TextInput
+                                style={[styles.materialInput, { width: 80, marginLeft: 8 }]}
+                                placeholder="Qty"
+                                value={newMaterial.quantity}
+                                onChangeText={(text) => setNewMaterial({ ...newMaterial, quantity: text })}
+                                keyboardType="numeric"
+                            />
+                            <TouchableOpacity style={styles.addButton} onPress={addMaterial}>
+                                <Ionicons name="add" size={24} color={COLORS.white} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.materialsList}>
+                            {materials.map((m, index) => (
+                                <View key={index} style={styles.materialTag}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Text style={styles.materialTagText}>{m.name} ({m.quantity} {m.unit})</Text>
+                                        <TouchableOpacity onPress={() => removeMaterial(index)}>
+                                            <Ionicons name="close-circle" size={18} color={COLORS.danger} style={{ marginLeft: 8 }} />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
+
                         <View style={styles.modalActions}>
                             <TouchableOpacity
                                 style={[styles.modalButton, styles.modalButtonCancel]}
@@ -313,10 +379,10 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                                 style={[
                                     styles.modalButton,
                                     styles.modalButtonConfirm,
-                                    !repairPhoto && styles.disabledButton
+                                    (!repairPhoto || materials.length === 0) && styles.disabledButton
                                 ]}
                                 onPress={confirmCompletion}
-                                disabled={!repairPhoto || uploading}
+                                disabled={!repairPhoto || materials.length === 0 || uploading}
                             >
                                 <Text style={styles.modalButtonTextConfirm}>
                                     {uploading ? t('loading') : t('confirm')}
@@ -586,4 +652,78 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 16,
     },
+    materialInputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    materialInput: {
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 8,
+        padding: 10,
+        fontSize: 14,
+        flex: 1,
+    },
+    addButton: {
+        backgroundColor: COLORS.primary,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginLeft: 8,
+    },
+    materialsList: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        marginBottom: 20,
+        gap: 8,
+    },
+    materialTag: {
+        backgroundColor: '#f1f5f9',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    materialTagText: {
+        fontSize: 12,
+        color: COLORS.dark,
+        fontWeight: '500',
+    },
+    walletBar: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: COLORS.white,
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: COLORS.secondary,
+    },
+    pointsBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fffbeb',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#fef3c7',
+    },
+    pointsText: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#b45309',
+        marginLeft: 6,
+    },
+    welcomeText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.dark,
+    }
 });

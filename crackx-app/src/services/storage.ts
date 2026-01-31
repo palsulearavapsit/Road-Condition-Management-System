@@ -21,17 +21,44 @@ class StorageService {
 
     // Registered Users
     async saveRegisteredUser(user: any): Promise<void> {
+        // Try saving to backend first for persistence
+        try {
+            await apiService.registerUser(user);
+        } catch (e) {
+            console.log('User sync to backend failed');
+        }
+
         const users = await this.getRegisteredUsers();
-        users.push(user);
-        await AsyncStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(users));
+        if (!users.find(u => u.username === user.username)) {
+            users.push(user);
+            await AsyncStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(users));
+        }
     }
 
     async getRegisteredUsers(): Promise<any[]> {
+        // Try fetching from backend first
+        try {
+            const onlineUsers = await apiService.fetchUsers();
+            if (onlineUsers && onlineUsers.length > 0) {
+                await AsyncStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(onlineUsers));
+                return onlineUsers;
+            }
+        } catch (e) {
+            console.log('Offline: Loading local users');
+        }
+
         const usersStr = await AsyncStorage.getItem(STORAGE_KEYS.REGISTERED_USERS);
         return usersStr ? JSON.parse(usersStr) : [];
     }
 
     async updateRegisteredUser(username: string, updates: any): Promise<void> {
+        // Sync to backend
+        try {
+            await apiService.updateUser(username, updates);
+        } catch (e) {
+            console.log('User update sync failed');
+        }
+
         const users = await this.getRegisteredUsers();
         const index = users.findIndex(u => u.username === username);
         if (index >= 0) {

@@ -26,16 +26,40 @@ print("✅ Model loaded successfully!")
 # Storage directories
 UPLOAD_FOLDER = 'backend/uploads'
 REPORTS_FOLDER = 'backend/reports'
+USERS_FOLDER = 'backend/users'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(REPORTS_FOLDER, exist_ok=True)
+os.makedirs(USERS_FOLDER, exist_ok=True)
 
-# In-memory database (for demo - replace with real DB in production)
+# In-memory database (will be populated from files)
 reports_db = []
+users_db = []
 zones_db = {
     'zone1': [],
     'zone4': [],
     'zone8': []
 }
+
+# Load existing data from files
+def load_initial_data():
+    # Load Reports
+    for filename in os.listdir(REPORTS_FOLDER):
+        if filename.endswith('.json'):
+            with open(os.path.join(REPORTS_FOLDER, filename), 'r') as f:
+                report = json.load(f)
+                reports_db.append(report)
+                zone = report.get('location', {}).get('zone', 'zone1')
+                if zone in zones_db:
+                    zones_db[zone].append(report)
+    
+    # Load Users
+    for filename in os.listdir(USERS_FOLDER):
+        if filename.endswith('.json'):
+            with open(os.path.join(USERS_FOLDER, filename), 'r') as f:
+                user = json.load(f)
+                users_db.append(user)
+
+load_initial_data()
 
 # Severity mapping based on confidence
 def calculate_severity(confidence):
@@ -198,6 +222,75 @@ def sync_reports():
         
     except Exception as e:
         print(f"Error in sync: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/users', methods=['GET'])
+def get_users():
+    """Get all registered users"""
+    return jsonify({
+        'success': True,
+        'users': users_db,
+        'count': len(users_db)
+    })
+
+@app.route('/api/users', methods=['POST'])
+def register_user():
+    """Register a new user and save to file"""
+    try:
+        user = request.json
+        if not user or 'username' not in user:
+            return jsonify({'error': 'Invalid user data'}), 400
+        
+        # Check if user already exists
+        if any(u['username'] == user['username'] for u in users_db):
+            return jsonify({'error': 'User already exists'}), 400
+            
+        # Add timestamp
+        user['registeredAt'] = datetime.now().isoformat()
+        
+        # Store in memory
+        users_db.append(user)
+        
+        # Save to file
+        user_file = os.path.join(USERS_FOLDER, f"{user['username']}.json")
+        with open(user_file, 'w') as f:
+            json.dump(user, f, indent=2)
+            
+        return jsonify({
+            'success': True,
+            'user': user
+        })
+    except Exception as e:
+        print(f"Error registering user: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/users/update', methods=['POST'])
+def update_user():
+    """Update an existing user"""
+    try:
+        data = request.json
+        username = data.get('username')
+        updates = data.get('updates')
+        
+        if not username or not updates:
+            return jsonify({'error': 'Missing username or updates'}), 400
+            
+        for i, user in enumerate(users_db):
+            if user['username'] == username:
+                users_db[i].update(updates)
+                
+                # Save to file
+                user_file = os.path.join(USERS_FOLDER, f"{username}.json")
+                with open(user_file, 'w') as f:
+                    json.dump(users_db[i], f, indent=2)
+                    
+                return jsonify({
+                    'success': True,
+                    'user': users_db[i]
+                })
+                
+        return jsonify({'error': 'User not found'}), 404
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/reports', methods=['GET'])

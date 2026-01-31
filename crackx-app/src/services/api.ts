@@ -18,9 +18,6 @@ class ApiService {
 
     async postReport(report: Report): Promise<boolean> {
         try {
-            const formData = new FormData();
-
-            // Reconstruct report JSON for backend format
             const reportsPayload = {
                 reports: [report]
             };
@@ -36,6 +33,44 @@ class ApiService {
             return response.ok;
         } catch (error) {
             console.error('API Post Error:', error);
+            return false;
+        }
+    }
+
+    // User Management
+    async fetchUsers(): Promise<any[]> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/users`);
+            if (!response.ok) return [];
+            const data = await response.json();
+            return data.users || [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    async registerUser(user: any): Promise<boolean> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/users`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(user),
+            });
+            return response.ok;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    async updateUser(username: string, updates: any): Promise<boolean> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/users/update`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, updates }),
+            });
+            return response.ok;
+        } catch (e) {
             return false;
         }
     }

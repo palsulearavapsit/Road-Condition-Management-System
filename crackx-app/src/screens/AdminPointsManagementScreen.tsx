@@ -106,11 +106,30 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
             <View style={styles.container}>
                 {/* Admin Wallet Info */}
                 <View style={styles.adminWallet}>
-                    <View style={styles.walletHeader}>
-                        <Ionicons name="wallet-outline" size={24} color={COLORS.white} />
-                        <Text style={styles.walletTitle}>Admin Point Pool</Text>
+                    <View style={styles.walletMain}>
+                        <View style={styles.walletInfo}>
+                            <View style={styles.walletHeader}>
+                                <Ionicons name="wallet-outline" size={24} color={COLORS.white} />
+                                <Text style={styles.walletTitle}>Admin Point Pool</Text>
+                            </View>
+                            <Text style={styles.walletValue}>{adminUser?.adminPointsPool?.toLocaleString() || 0}</Text>
+                        </View>
+                        <TouchableOpacity
+                            style={styles.rechargeBtn}
+                            onPress={async () => {
+                                if (!adminUser) return;
+                                const newPool = (adminUser.adminPointsPool || 0) + 1000000;
+                                const updatedAdmin = { ...adminUser, adminPointsPool: newPool };
+                                await storageService.updateRegisteredUser(adminUser.username, { adminPointsPool: newPool });
+                                await storageService.saveUser(updatedAdmin);
+                                setAdminUser(updatedAdmin);
+                                Alert.alert('Success', '1,000,000 points added to pool!');
+                            }}
+                        >
+                            <Ionicons name="add-circle" size={32} color={COLORS.white} />
+                            <Text style={styles.rechargeText}>Recharge</Text>
+                        </TouchableOpacity>
                     </View>
-                    <Text style={styles.walletValue}>{adminUser?.adminPointsPool?.toLocaleString() || 0}</Text>
                     <Text style={styles.walletSubtext}>Remaining points available for distribution</Text>
                 </View>
 
@@ -151,7 +170,15 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
 
                                         <View style={styles.cardUserInfo}>
                                             <Ionicons name="person-outline" size={16} color={COLORS.gray} />
-                                            <Text style={styles.cardUser}>{report.citizenId}</Text>
+                                            <Text style={styles.cardUser}>
+                                                {(() => {
+                                                    const u = users.find(user => user.id === report.citizenId || user.username === report.citizenId);
+                                                    if (u && !u.username.startsWith('user_')) return u.username;
+                                                    // Mapping auto-generated IDs to friendly names for demo
+                                                    const hash = report.citizenId.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0);
+                                                    return Math.abs(hash) % 2 === 0 ? 'Arav' : 'Abbas';
+                                                })()}
+                                            </Text>
                                             <Text style={styles.cardDate}>{formatDate(report.createdAt)}</Text>
                                         </View>
 
@@ -217,6 +244,30 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 10,
         elevation: 6,
+    },
+    walletMain: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    walletInfo: {
+        flex: 1,
+    },
+    rechargeBtn: {
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.3)',
+    },
+    rechargeText: {
+        color: COLORS.white,
+        fontSize: 10,
+        fontWeight: 'bold',
+        marginTop: 2,
     },
     walletHeader: {
         flexDirection: 'row',

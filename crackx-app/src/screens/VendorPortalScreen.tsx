@@ -11,7 +11,10 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { syncService } from '../services/sync';
+import { Ionicons } from '@expo/vector-icons';
+import syncService from '../services/sync';
+import DashboardLayout from '../components/DashboardLayout';
+import { COLORS } from '../constants';
 
 interface WorkOrder {
     id: string;
@@ -31,12 +34,33 @@ interface WorkOrder {
     assignedVendor?: string;
 }
 
-export default function VendorPortalScreen({ navigation }: any) {
+interface InventoryItem {
+    id: string;
+    name: string;
+    quantity: number;
+    unit: string;
+}
+
+interface VendorPortalScreenProps {
+    onNavigate: (screen: string) => void;
+    onLogout: () => void;
+}
+
+export default function VendorPortalScreen({ onNavigate, onLogout }: VendorPortalScreenProps) {
     const { t } = useTranslation();
+    const [viewMode, setViewMode] = useState<'orders' | 'inventory'>('orders');
     const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+    const [inventory, setInventory] = useState<InventoryItem[]>([
+        { id: '1', name: 'Asphalt Mix', quantity: 500, unit: 'kg' },
+        { id: '2', name: 'Road Sealant', quantity: 120, unit: 'liters' },
+        { id: '3', name: 'Line Paint (White)', quantity: 45, unit: 'liters' },
+    ]);
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
+    const [showInventoryModal, setShowInventoryModal] = useState(false);
+    const [newItemName, setNewItemName] = useState('');
+    const [newItemQty, setNewItemQty] = useState('');
     const [filterStatus, setFilterStatus] = useState<string>('all');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -46,16 +70,41 @@ export default function VendorPortalScreen({ navigation }: any) {
 
     const loadWorkOrders = async () => {
         try {
-            // Fetch from backend or local storage
             const orders = await syncService.fetchWorkOrders();
             setWorkOrders(orders);
             setLoading(false);
         } catch (error) {
             console.error('Error loading work orders:', error);
-            // Load demo data
             setWorkOrders(demoWorkOrders);
             setLoading(false);
         }
+    };
+
+    const addInventoryItem = () => {
+        if (!newItemName || !newItemQty) {
+            Alert.alert('Error', 'Please enter name and quantity');
+            return;
+        }
+        const item: InventoryItem = {
+            id: Date.now().toString(),
+            name: newItemName,
+            quantity: parseFloat(newItemQty),
+            unit: 'units',
+        };
+        setInventory([...inventory, item]);
+        setNewItemName('');
+        setNewItemQty('');
+        setShowInventoryModal(false);
+    };
+
+    const removeInventoryItem = (id: string) => {
+        setInventory(inventory.filter(item => item.id !== id));
+    };
+
+    const updateQuantity = (id: string, delta: number) => {
+        setInventory(inventory.map(item =>
+            item.id === id ? { ...item, quantity: Math.max(0, item.quantity + delta) } : item
+        ));
     };
 
     const acceptWorkOrder = async (orderId: string) => {
@@ -133,540 +182,348 @@ export default function VendorPortalScreen({ navigation }: any) {
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#2563eb" />
-                <Text style={styles.loadingText}>Loading Work Orders...</Text>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Loading Data...</Text>
             </View>
         );
     }
 
     return (
-        <View style={styles.container}>
-            {/* Header */}
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Vendor Portal</Text>
-                <Text style={styles.headerSubtitle}>Work Order Management System</Text>
-            </View>
-
-            {/* Stats Cards */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statsContainer}>
-                <View style={[styles.statsCard, { borderLeftColor: '#f59e0b' }]}>
-                    <Text style={styles.statsValue}>{stats.pending}</Text>
-                    <Text style={styles.statsLabel}>Pending</Text>
-                </View>
-                <View style={[styles.statsCard, { borderLeftColor: '#3b82f6' }]}>
-                    <Text style={styles.statsValue}>{stats.assigned}</Text>
-                    <Text style={styles.statsLabel}>Assigned</Text>
-                </View>
-                <View style={[styles.statsCard, { borderLeftColor: '#8b5cf6' }]}>
-                    <Text style={styles.statsValue}>{stats.inProgress}</Text>
-                    <Text style={styles.statsLabel}>In Progress</Text>
-                </View>
-                <View style={[styles.statsCard, { borderLeftColor: '#10b981' }]}>
-                    <Text style={styles.statsValue}>{stats.completed}</Text>
-                    <Text style={styles.statsLabel}>Completed</Text>
-                </View>
-            </ScrollView>
-
-            {/* Search and Filter */}
-            <View style={styles.filterSection}>
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder="Search by order number, title, or zone..."
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholderTextColor="#94a3b8"
-                />
-
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterButtons}>
-                    {['all', 'pending', 'assigned', 'in-progress', 'completed'].map((status) => (
-                        <TouchableOpacity
-                            key={status}
-                            style={[
-                                styles.filterButton,
-                                filterStatus === status && styles.filterButtonActive,
-                            ]}
-                            onPress={() => setFilterStatus(status)}
-                        >
-                            <Text
-                                style={[
-                                    styles.filterButtonText,
-                                    filterStatus === status && styles.filterButtonTextActive,
-                                ]}
-                            >
-                                {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
-            </View>
-
-            {/* Work Orders List */}
-            <ScrollView style={styles.ordersContainer} showsVerticalScrollIndicator={false}>
-                {filteredOrders.map((order) => (
+        <DashboardLayout
+            title="Material & Inventory"
+            role="rso"
+            activeRoute="VendorPortal"
+            onNavigate={onNavigate}
+            onLogout={onLogout}
+        >
+            <View style={styles.container}>
+                {/* View Mode Switcher */}
+                <View style={styles.tabBar}>
                     <TouchableOpacity
-                        key={order.id}
-                        style={styles.orderCard}
-                        onPress={() => {
-                            setSelectedOrder(order);
-                            setShowDetailModal(true);
-                        }}
+                        style={[styles.tab, viewMode === 'orders' && styles.tabActive]}
+                        onPress={() => setViewMode('orders')}
                     >
-                        <View style={styles.orderHeader}>
-                            <View>
-                                <Text style={styles.orderNumber}>{order.orderNumber}</Text>
-                                <Text style={styles.orderTitle}>{order.title}</Text>
-                            </View>
-                            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) }]}>
-                                <Text style={styles.statusText}>
-                                    {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                                </Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.orderDetails}>
-                            <View style={styles.orderDetailItem}>
-                                <Text style={styles.orderDetailLabel}>Zone:</Text>
-                                <Text style={styles.orderDetailValue}>{order.zone}</Text>
-                            </View>
-                            <View style={styles.orderDetailItem}>
-                                <Text style={styles.orderDetailLabel}>Severity:</Text>
-                                <View
-                                    style={[
-                                        styles.severityBadge,
-                                        { backgroundColor: getSeverityColor(order.severity) },
-                                    ]}
-                                >
-                                    <Text style={styles.severityText}>{order.severity.toUpperCase()}</Text>
-                                </View>
-                            </View>
-                            <View style={styles.orderDetailItem}>
-                                <Text style={styles.orderDetailLabel}>Est. Cost:</Text>
-                                <Text style={styles.orderDetailValue}>₹{order.estimatedCost.toLocaleString()}</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.orderFooter}>
-                            <Text style={styles.orderDate}>
-                                Created: {new Date(order.createdAt).toLocaleDateString()}
-                            </Text>
-                            {order.deadline && (
-                                <Text style={styles.orderDeadline}>
-                                    Deadline: {new Date(order.deadline).toLocaleDateString()}
-                                </Text>
-                            )}
-                        </View>
+                        <Text style={[styles.tabText, viewMode === 'orders' && styles.tabTextActive]}>Work Orders</Text>
                     </TouchableOpacity>
-                ))}
+                    <TouchableOpacity
+                        style={[styles.tab, viewMode === 'inventory' && styles.tabActive]}
+                        onPress={() => setViewMode('inventory')}
+                    >
+                        <Text style={[styles.tabText, viewMode === 'inventory' && styles.tabTextActive]}>Inventory</Text>
+                    </TouchableOpacity>
+                </View>
 
-                {filteredOrders.length === 0 && (
-                    <View style={styles.emptyState}>
-                        <Text style={styles.emptyStateText}>No work orders found</Text>
-                        <Text style={styles.emptyStateSubtext}>Try changing your filters</Text>
+                {viewMode === 'orders' ? (
+                    <ScrollView showsVerticalScrollIndicator={false}>
+                        {/* Stats Cards */}
+                        <View style={styles.statsRow}>
+                            <View style={[styles.statsCard, { borderLeftColor: '#f59e0b' }]}>
+                                <Text style={styles.statsValue}>{stats.pending}</Text>
+                                <Text style={styles.statsLabel}>Pending</Text>
+                            </View>
+                            <View style={[styles.statsCard, { borderLeftColor: '#3b82f6' }]}>
+                                <Text style={styles.statsValue}>{stats.assigned}</Text>
+                                <Text style={styles.statsLabel}>Assigned</Text>
+                            </View>
+                            <View style={[styles.statsCard, { borderLeftColor: '#8b5cf6' }]}>
+                                <Text style={styles.statsValue}>{stats.inProgress}</Text>
+                                <Text style={styles.statsLabel}>In Progress</Text>
+                            </View>
+                            <View style={[styles.statsCard, { borderLeftColor: '#10b981' }]}>
+                                <Text style={styles.statsValue}>{stats.completed}</Text>
+                                <Text style={styles.statsLabel}>Completed</Text>
+                            </View>
+                        </View>
+
+                        {/* Search and Filter */}
+                        <View style={styles.filterSection}>
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="Search work orders..."
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                placeholderTextColor="#94a3b8"
+                            />
+
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterButtons}>
+                                {['all', 'pending', 'assigned', 'in-progress', 'completed'].map((status) => (
+                                    <TouchableOpacity
+                                        key={status}
+                                        style={[
+                                            styles.filterButton,
+                                            filterStatus === status && styles.filterButtonActive,
+                                        ]}
+                                        onPress={() => setFilterStatus(status)}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.filterButtonText,
+                                                filterStatus === status && styles.filterButtonTextActive,
+                                            ]}
+                                        >
+                                            {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+
+                        {/* Work Orders List */}
+                        <View style={styles.ordersList}>
+                            {filteredOrders.map((order) => (
+                                <TouchableOpacity
+                                    key={order.id}
+                                    style={styles.orderCard}
+                                    onPress={() => {
+                                        setSelectedOrder(order);
+                                        setShowDetailModal(true);
+                                    }}
+                                >
+                                    <View style={styles.orderHeader}>
+                                        <View>
+                                            <Text style={styles.orderNumber}>{order.orderNumber}</Text>
+                                            <Text style={styles.orderTitle}>{order.title}</Text>
+                                        </View>
+                                        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) }]}>
+                                            <Text style={styles.statusText}>
+                                                {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.orderFooter}>
+                                        <View style={styles.orderDetailItem}>
+                                            <Text style={styles.orderDetailLabel}>Zone:</Text>
+                                            <Text style={styles.orderDetailValue}>{order.zone}</Text>
+                                        </View>
+                                        <View style={styles.orderDetailItem}>
+                                            <Text style={styles.orderDetailLabel}>Severity:</Text>
+                                            <View style={[styles.severityBadge, { backgroundColor: getSeverityColor(order.severity) }]}>
+                                                <Text style={styles.severityText}>{order.severity.toUpperCase()}</Text>
+                                            </View>
+                                        </View>
+                                        <Text style={styles.orderDate}>
+                                            {new Date(order.createdAt).toLocaleDateString()}
+                                        </Text>
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </ScrollView>
+                ) : (
+                    <View style={{ flex: 1 }}>
+                        <View style={styles.inventoryHeader}>
+                            <Text style={styles.inventoryTitle}>Stock Management</Text>
+                            <TouchableOpacity style={styles.addBtn} onPress={() => setShowInventoryModal(true)}>
+                                <Ionicons name="add" size={24} color={COLORS.white} />
+                                <Text style={styles.addBtnText}>Add Item</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {inventory.map(item => (
+                                <View key={item.id} style={styles.inventoryCard}>
+                                    <View style={styles.inventoryInfo}>
+                                        <Text style={styles.itemName}>{item.name}</Text>
+                                        <Text style={styles.itemQty}>{item.quantity} {item.unit}</Text>
+                                    </View>
+                                    <View style={styles.inventoryActions}>
+                                        <TouchableOpacity
+                                            style={styles.qtyBtn}
+                                            onPress={() => updateQuantity(item.id, -1)}
+                                        >
+                                            <Ionicons name="remove-circle-outline" size={24} color={COLORS.danger} />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={styles.qtyBtn}
+                                            onPress={() => updateQuantity(item.id, 1)}
+                                        >
+                                            <Ionicons name="add-circle-outline" size={24} color={COLORS.success} />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={styles.deleteBtn}
+                                            onPress={() => removeInventoryItem(item.id)}
+                                        >
+                                            <Ionicons name="trash-outline" size={24} color={COLORS.gray} />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            ))}
+                        </ScrollView>
                     </View>
                 )}
-            </ScrollView>
 
-            {/* Work Order Detail Modal */}
-            <Modal visible={showDetailModal} animationType="slide" transparent>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        {selectedOrder && (
-                            <ScrollView showsVerticalScrollIndicator={false}>
-                                <View style={styles.modalHeader}>
-                                    <Text style={styles.modalTitle}>{selectedOrder.orderNumber}</Text>
-                                    <TouchableOpacity onPress={() => setShowDetailModal(false)}>
-                                        <Text style={styles.modalClose}>✕</Text>
-                                    </TouchableOpacity>
-                                </View>
-
-                                <View
-                                    style={[
-                                        styles.modalStatusBadge,
-                                        { backgroundColor: getStatusColor(selectedOrder.status) },
-                                    ]}
-                                >
-                                    <Text style={styles.modalStatusText}>{selectedOrder.status.toUpperCase()}</Text>
-                                </View>
-
-                                <View style={styles.modalSection}>
-                                    <Text style={styles.modalSectionTitle}>Work Details</Text>
-                                    <Text style={styles.modalText}>{selectedOrder.title}</Text>
-                                    <Text style={styles.modalDescription}>{selectedOrder.description}</Text>
-                                </View>
-
-                                <View style={styles.modalSection}>
-                                    <Text style={styles.modalSectionTitle}>Location</Text>
-                                    <Text style={styles.modalText}>Zone: {selectedOrder.zone}</Text>
-                                    <Text style={styles.modalText}>Address: {selectedOrder.location}</Text>
-                                </View>
-
-                                <View style={styles.modalSection}>
-                                    <Text style={styles.modalSectionTitle}>Damage Information</Text>
-                                    <Text style={styles.modalText}>Type: {selectedOrder.damageType}</Text>
-                                    <Text style={styles.modalText}>Severity: {selectedOrder.severity}</Text>
-                                </View>
-
-                                <View style={styles.modalSection}>
-                                    <Text style={styles.modalSectionTitle}>Cost Estimation</Text>
-                                    <Text style={styles.modalText}>
-                                        Estimated Cost: ₹{selectedOrder.estimatedCost.toLocaleString()}
-                                    </Text>
-                                    {selectedOrder.actualCost && (
-                                        <Text style={styles.modalText}>
-                                            Actual Cost: ₹{selectedOrder.actualCost.toLocaleString()}
-                                        </Text>
-                                    )}
-                                </View>
-
-                                {/* Action Buttons */}
-                                <View style={styles.actionButtons}>
-                                    {selectedOrder.status === 'pending' && (
-                                        <TouchableOpacity
-                                            style={[styles.actionButton, styles.acceptButton]}
-                                            onPress={() => acceptWorkOrder(selectedOrder.id)}
-                                        >
-                                            <Text style={styles.actionButtonText}>Accept Work Order</Text>
+                {/* Work Order Detail Modal */}
+                <Modal visible={showDetailModal} animationType="slide" transparent>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            {selectedOrder && (
+                                <ScrollView showsVerticalScrollIndicator={false}>
+                                    <View style={styles.modalHeader}>
+                                        <Text style={styles.modalTitle}>{selectedOrder.orderNumber}</Text>
+                                        <TouchableOpacity onPress={() => setShowDetailModal(false)}>
+                                            <Text style={styles.modalClose}>✕</Text>
                                         </TouchableOpacity>
-                                    )}
+                                    </View>
 
-                                    {selectedOrder.status === 'assigned' && (
-                                        <TouchableOpacity
-                                            style={[styles.actionButton, styles.startButton]}
-                                            onPress={() => startWork(selectedOrder.id)}
-                                        >
-                                            <Text style={styles.actionButtonText}>Start Work</Text>
-                                        </TouchableOpacity>
-                                    )}
+                                    <View style={[styles.modalStatusBadge, { backgroundColor: getStatusColor(selectedOrder.status) }]}>
+                                        <Text style={styles.modalStatusText}>{selectedOrder.status.toUpperCase()}</Text>
+                                    </View>
 
-                                    {selectedOrder.status === 'in-progress' && (
-                                        <TouchableOpacity
-                                            style={[styles.actionButton, styles.completeButton]}
-                                            onPress={() => {
-                                                Alert.prompt(
-                                                    'Complete Work Order',
-                                                    'Enter actual cost (₹):',
-                                                    (text) => completeWork(selectedOrder.id, parseFloat(text) || 0),
-                                                    'plain-text',
-                                                    selectedOrder.estimatedCost.toString()
-                                                );
-                                            }}
-                                        >
-                                            <Text style={styles.actionButtonText}>Mark as Completed</Text>
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
-                            </ScrollView>
-                        )}
+                                    <View style={styles.modalSection}>
+                                        <Text style={styles.modalSectionTitle}>Work Details</Text>
+                                        <Text style={styles.modalText}>{selectedOrder.title}</Text>
+                                        <Text style={styles.modalDescription}>{selectedOrder.description}</Text>
+                                    </View>
+
+                                    {/* Action Buttons */}
+                                    <View style={styles.actionButtons}>
+                                        {selectedOrder.status === 'pending' && (
+                                            <TouchableOpacity
+                                                style={[styles.actionButton, styles.acceptButton]}
+                                                onPress={() => acceptWorkOrder(selectedOrder.id)}
+                                            >
+                                                <Text style={styles.actionButtonText}>Accept Work Order</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                        {selectedOrder.status === 'assigned' && (
+                                            <TouchableOpacity
+                                                style={[styles.actionButton, styles.startButton]}
+                                                onPress={() => startWork(selectedOrder.id)}
+                                            >
+                                                <Text style={styles.actionButtonText}>Start Work</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                        {selectedOrder.status === 'in-progress' && (
+                                            <TouchableOpacity
+                                                style={[styles.actionButton, styles.completeBtn]}
+                                                onPress={() => completeWork(selectedOrder.id, selectedOrder.estimatedCost)}
+                                            >
+                                                <Text style={styles.actionButtonText}>Mark as Completed</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                </ScrollView>
+                            )}
+                        </View>
                     </View>
-                </View>
-            </Modal>
-        </View>
+                </Modal>
+
+                {/* Add Inventory Modal */}
+                <Modal visible={showInventoryModal} animationType="fade" transparent>
+                    <View style={styles.modalOverlay}>
+                        <View style={[styles.modalContent, { maxHeight: 400 }]}>
+                            <Text style={styles.modalTitle}>Add New Material</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Material Name (e.g. Cement)"
+                                value={newItemName}
+                                onChangeText={setNewItemName}
+                            />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Quantity"
+                                keyboardType="numeric"
+                                value={newItemQty}
+                                onChangeText={setNewItemQty}
+                            />
+                            <View style={styles.modalActions}>
+                                <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowInventoryModal(false)}>
+                                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.confirmBtn} onPress={addInventoryItem}>
+                                    <Text style={styles.confirmBtnText}>Add to Stock</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+            </View>
+        </DashboardLayout>
     );
 }
 
-// Demo data
 const demoWorkOrders: WorkOrder[] = [
     {
-        id: 'wo1',
-        orderNumber: 'WO-20260131-001',
-        reportId: 'rep1',
-        title: 'Pothole Repair - Main Street',
-        description: 'Large pothole detected on Main Street causing traffic disruption. Immediate repair required.',
-        zone: 'Zone 1',
-        location: 'Main Street, Near City Hall',
-        damageType: 'Pothole',
-        severity: 'high',
-        estimatedCost: 25000,
-        status: 'pending',
-        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        createdAt: new Date().toISOString(),
+        id: 'wo1', orderNumber: 'WO-101', reportId: 'rep1', title: 'Pothole Repair',
+        description: 'Large pothole on highway', zone: 'Zone 1', location: 'Main St',
+        damageType: 'Pothole', severity: 'high', estimatedCost: 25000, status: 'pending',
+        deadline: '', createdAt: new Date().toISOString()
     },
     {
-        id: 'wo2',
-        orderNumber: 'WO-20260130-002',
-        reportId: 'rep2',
-        title: 'Crack Sealing - Highway Junction',
-        description: 'Multiple alligator cracks detected at highway junction. Preventive sealing needed.',
-        zone: 'Zone 4',
-        location: 'Highway Junction, Sector 12',
-        damageType: 'Crack',
-        severity: 'medium',
-        estimatedCost: 18000,
-        status: 'in-progress',
-        deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        assignedVendor: 'ABC Constructions',
-    },
+        id: 'wo2', orderNumber: 'WO-102', reportId: 'rep2', title: 'Crack Sealing',
+        description: 'Medium cracks on junction', zone: 'Zone 4', location: 'Sector 12',
+        damageType: 'Crack', severity: 'medium', estimatedCost: 15000, status: 'in-progress',
+        deadline: '', createdAt: new Date().toISOString()
+    }
 ];
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f1f5f9',
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#f1f5f9',
-    },
-    loadingText: {
-        marginTop: 16,
-        fontSize: 16,
-        color: '#64748b',
-    },
-    header: {
-        backgroundColor: '#1e293b',
-        paddingTop: 60,
-        paddingBottom: 24,
-        paddingHorizontal: 20,
-    },
-    headerTitle: {
-        fontSize: 28,
-        fontWeight: '700',
-        color: '#fff',
-        marginBottom: 4,
-    },
-    headerSubtitle: {
-        fontSize: 16,
-        color: '#94a3b8',
-    },
-    statsContainer: {
-        marginTop: 16,
-        paddingHorizontal: 20,
-        marginBottom: 16,
-    },
-    statsCard: {
-        backgroundColor: '#fff',
-        padding: 16,
-        borderRadius: 12,
-        marginRight: 12,
-        minWidth: 120,
-        borderLeftWidth: 4,
-    },
-    statsValue: {
-        fontSize: 32,
-        fontWeight: '700',
-        color: '#1e293b',
-        marginBottom: 4,
-    },
-    statsLabel: {
-        fontSize: 14,
-        color: '#64748b',
-    },
-    filterSection: {
-        paddingHorizontal: 20,
-        marginBottom: 16,
-    },
-    searchInput: {
-        backgroundColor: '#fff',
-        padding: 14,
-        borderRadius: 12,
-        fontSize: 16,
-        color: '#1e293b',
-        marginBottom: 12,
-    },
-    filterButtons: {
-        flexDirection: 'row',
-    },
-    filterButton: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: '#e2e8f0',
-        marginRight: 8,
-    },
-    filterButtonActive: {
-        backgroundColor: '#2563eb',
-    },
-    filterButtonText: {
-        fontSize: 14,
-        color: '#64748b',
-        fontWeight: '600',
-    },
-    filterButtonTextActive: {
-        color: '#fff',
-    },
-    ordersContainer: {
-        flex: 1,
-        paddingHorizontal: 20,
-    },
-    orderCard: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    orderHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 12,
-    },
-    orderNumber: {
-        fontSize: 14,
-        color: '#64748b',
-        marginBottom: 4,
-    },
-    orderTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#1e293b',
-    },
-    statusBadge: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 12,
-    },
-    statusText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    orderDetails: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 12,
-    },
-    orderDetailItem: {
-        flex: 1,
-    },
-    orderDetailLabel: {
-        fontSize: 12,
-        color: '#64748b',
-        marginBottom: 4,
-    },
-    orderDetailValue: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#1e293b',
-    },
-    severityBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
-        alignSelf: 'flex-start',
-    },
-    severityText: {
-        color: '#fff',
-        fontSize: 10,
-        fontWeight: '700',
-    },
-    orderFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        borderTopWidth: 1,
-        borderTopColor: '#e2e8f0',
-        paddingTop: 12,
-    },
-    orderDate: {
-        fontSize: 12,
-        color: '#64748b',
-    },
-    orderDeadline: {
-        fontSize: 12,
-        color: '#ef4444',
-        fontWeight: '600',
-    },
-    emptyState: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 60,
-    },
-    emptyStateText: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#64748b',
-        marginBottom: 8,
-    },
-    emptyStateSubtext: {
-        fontSize: 14,
-        color: '#94a3b8',
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'flex-end',
-    },
-    modalContent: {
-        backgroundColor: '#fff',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        padding: 24,
-        maxHeight: '90%',
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#1e293b',
-    },
-    modalClose: {
-        fontSize: 28,
-        color: '#64748b',
-    },
-    modalStatusBadge: {
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: 20,
-        alignSelf: 'flex-start',
-        marginBottom: 24,
-    },
-    modalStatusText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '700',
-    },
-    modalSection: {
-        marginBottom: 24,
-    },
-    modalSectionTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#1e293b',
-        marginBottom: 12,
-    },
-    modalText: {
-        fontSize: 14,
-        color: '#475569',
-        marginBottom: 8,
-    },
-    modalDescription: {
-        fontSize: 14,
-        color: '#64748b',
-        lineHeight: 20,
-    },
-    actionButtons: {
-        marginTop: 24,
-    },
-    actionButton: {
-        padding: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    acceptButton: {
-        backgroundColor: '#10b981',
-    },
-    startButton: {
-        backgroundColor: '#3b82f6',
-    },
-    completeButton: {
-        backgroundColor: '#8b5cf6',
-    },
-    actionButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
+    container: { flex: 1, padding: 16 },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    loadingText: { marginTop: 16, color: COLORS.gray },
+    tabBar: { flexDirection: 'row', backgroundColor: COLORS.light, borderRadius: 12, padding: 4, marginBottom: 20 },
+    tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
+    tabActive: { backgroundColor: COLORS.white, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, elevation: 2 },
+    tabText: { fontSize: 14, fontWeight: '600', color: COLORS.gray },
+    tabTextActive: { color: COLORS.primary },
+    statsRow: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -8, marginBottom: 8 },
+    statsCard: { backgroundColor: COLORS.white, padding: 16, borderRadius: 12, marginHorizontal: 8, marginBottom: 16, flex: 1, minWidth: 140, height: 100, borderLeftWidth: 4, borderWidth: 1, borderColor: COLORS.border, elevation: 2 },
+    statsValue: { fontSize: 24, fontWeight: '700', color: COLORS.dark },
+    statsLabel: { fontSize: 12, color: COLORS.gray },
+    filterSection: { marginBottom: 16 },
+    searchInput: { backgroundColor: COLORS.white, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, marginBottom: 12 },
+    filterButtons: { flexDirection: 'row' },
+    filterButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: COLORS.light, marginRight: 8 },
+    filterButtonActive: { backgroundColor: COLORS.primary },
+    filterButtonText: { fontSize: 12, color: COLORS.gray },
+    filterButtonTextActive: { color: COLORS.white },
+    ordersList: { gap: 12 },
+    orderCard: { backgroundColor: COLORS.white, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: COLORS.border },
+    orderHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+    orderNumber: { fontSize: 12, color: COLORS.gray },
+    orderTitle: { fontSize: 16, fontWeight: '600', color: COLORS.dark },
+    statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+    statusText: { color: COLORS.white, fontSize: 10, fontWeight: '700' },
+    orderFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 12 },
+    orderDetailItem: { alignItems: 'flex-start' },
+    orderDetailLabel: { fontSize: 10, color: COLORS.gray },
+    orderDetailValue: { fontSize: 12, fontWeight: '600' },
+    severityBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+    severityText: { color: COLORS.white, fontSize: 8, fontWeight: '700' },
+    orderDate: { fontSize: 10, color: COLORS.gray },
+    inventoryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    inventoryTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.dark },
+    addBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
+    addBtnText: { color: COLORS.white, fontWeight: '600', marginLeft: 4 },
+    inventoryCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.white, padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border },
+    inventoryInfo: { flex: 1 },
+    itemName: { fontSize: 16, fontWeight: 'bold', color: COLORS.dark },
+    itemQty: { fontSize: 14, color: COLORS.primary, fontWeight: '600' },
+    inventoryActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    qtyBtn: { padding: 4 },
+    deleteBtn: { padding: 4, marginLeft: 8 },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    modalContent: { backgroundColor: COLORS.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    modalTitle: { fontSize: 20, fontWeight: 'bold' },
+    modalClose: { fontSize: 24, color: COLORS.gray },
+    modalStatusBadge: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginBottom: 20 },
+    modalStatusText: { color: COLORS.white, fontWeight: 'bold' },
+    modalSection: { marginBottom: 24 },
+    modalSectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 8 },
+    modalText: { fontSize: 14, marginBottom: 4 },
+    modalDescription: { fontSize: 14, color: COLORS.gray, lineHeight: 20 },
+    actionButtons: { gap: 12 },
+    actionButton: { padding: 16, borderRadius: 12, alignItems: 'center' },
+    acceptButton: { backgroundColor: COLORS.success },
+    startButton: { backgroundColor: COLORS.primary },
+    completeBtn: { backgroundColor: '#8b5cf6' },
+    actionButtonText: { color: COLORS.white, fontWeight: 'bold' },
+    input: { backgroundColor: COLORS.light, padding: 12, borderRadius: 12, marginBottom: 16 },
+    modalActions: { flexDirection: 'row', gap: 12 },
+    cancelBtn: { flex: 1, padding: 12, alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: COLORS.border },
+    cancelBtnText: { color: COLORS.gray, fontWeight: '600' },
+    confirmBtn: { flex: 2, padding: 12, alignItems: 'center', backgroundColor: COLORS.primary, borderRadius: 12 },
+    confirmBtnText: { color: COLORS.white, fontWeight: 'bold' },
 });

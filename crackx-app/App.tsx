@@ -19,6 +19,7 @@ import MyReportsScreen from './src/screens/MyReportsScreen';
 import AdminUserManagementScreen from './src/screens/AdminUserManagementScreen';
 import AdminHeatmapScreen from './src/screens/AdminHeatmapScreen';
 import AdminPointsManagementScreen from './src/screens/AdminPointsManagementScreen';
+import VendorPortalScreen from './src/screens/VendorPortalScreen';
 
 type AppState =
   | 'loading'
@@ -32,7 +33,8 @@ type AppState =
   | 'my-reports'
   | 'user-management'
   | 'admin-heatmap'
-  | 'points-management';
+  | 'points-management'
+  | 'vendor-portal';
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('loading');
@@ -139,6 +141,9 @@ export default function App() {
       case 'Points':
         setAppState('points-management');
         break;
+      case 'VendorPortal':
+        setAppState('vendor-portal');
+        break;
       default:
         navigateToHome(userRole);
     }
@@ -212,6 +217,13 @@ export default function App() {
       case 'points-management':
         return (
           <AdminPointsManagementScreen
+            onNavigate={handleNavigate}
+            onLogout={handleLogout}
+          />
+        );
+      case 'vendor-portal':
+        return (
+          <VendorPortalScreen
             onNavigate={handleNavigate}
             onLogout={handleLogout}
           />

@@ -115,48 +115,50 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
         >
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
                 {/* Action Buttons */}
-                <View style={[styles.section, { flexDirection: 'row', gap: 12, flexWrap: 'wrap' }]}>
-                    <TouchableOpacity
-                        style={[styles.actionButton, { flex: 0, width: '48%' }]}
-                        onPress={() => onNavigate('UserManagement')}
-                    >
-                        <View style={styles.actionIconBadge}>
-                            <Ionicons name="people" size={24} color={COLORS.primary} />
-                            {pendingRSOs.length > 0 && (
-                                <View style={styles.badgeDot} />
-                            )}
-                        </View>
-                        <View>
-                            <Text style={styles.actionButtonTitle}>Users</Text>
-                            <Text style={styles.actionButtonSubtitle}>{pendingRSOs.length} Pending</Text>
-                        </View>
-                    </TouchableOpacity>
+                <View style={styles.actionGrid}>
+                    <View style={styles.actionRow}>
+                        <TouchableOpacity
+                            style={styles.actionButtonHalf}
+                            onPress={() => onNavigate('UserManagement')}
+                        >
+                            <View style={styles.actionIconBadge}>
+                                <Ionicons name="people" size={24} color={COLORS.primary} />
+                                {pendingRSOs.length > 0 && (
+                                    <View style={styles.badgeDot} />
+                                )}
+                            </View>
+                            <View style={styles.actionTextContainer}>
+                                <Text style={styles.actionButtonTitle}>Users</Text>
+                                <Text style={styles.actionButtonSubtitle}>{pendingRSOs.length} Pending</Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.actionButtonHalf}
+                            onPress={() => onNavigate('Points')}
+                        >
+                            <View style={[styles.actionIconBadge, { backgroundColor: '#fffbeb' }]}>
+                                <Ionicons name="star" size={24} color="#f59e0b" />
+                            </View>
+                            <View style={styles.actionTextContainer}>
+                                <Text style={styles.actionButtonTitle}>Points</Text>
+                                <Text style={styles.actionButtonSubtitle}>Approvals</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
 
                     <TouchableOpacity
-                        style={[styles.actionButton, { flex: 0, width: '48%' }]}
-                        onPress={() => onNavigate('Points')}
-                    >
-                        <View style={[styles.actionIconBadge, { backgroundColor: '#fffbeb' }]}>
-                            <Ionicons name="star" size={24} color="#f59e0b" />
-                        </View>
-                        <View>
-                            <Text style={styles.actionButtonTitle}>Points</Text>
-                            <Text style={styles.actionButtonSubtitle}>Approvals</Text>
-                        </View>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.actionButton, { flex: 0, width: '100%', marginTop: 8 }]}
+                        style={styles.actionButtonFull}
                         onPress={() => onNavigate('Heatmap')}
                     >
                         <View style={[styles.actionIconBadge, { backgroundColor: '#fee2e2' }]}>
                             <Ionicons name="flame" size={24} color={COLORS.danger} />
                         </View>
-                        <View>
+                        <View style={styles.actionTextContainer}>
                             <Text style={styles.actionButtonTitle}>Disaster Heatmap</Text>
                             <Text style={styles.actionButtonSubtitle}>Critical vulnerability analysis</Text>
                         </View>
-                        <Ionicons name="chevron-forward" size={24} color={COLORS.gray} style={{ marginLeft: 'auto' }} />
+                        <Ionicons name="chevron-forward" size={20} color={COLORS.gray} style={{ marginLeft: 'auto' }} />
                     </TouchableOpacity>
                 </View>
 
@@ -460,7 +462,15 @@ const styles = StyleSheet.create({
         color: COLORS.gray,
         fontWeight: '500',
     },
-    actionButton: {
+    actionGrid: {
+        padding: 16,
+        gap: 12,
+    },
+    actionRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    actionButtonHalf: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
@@ -474,6 +484,24 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 4,
         elevation: 2,
+    },
+    actionButtonFull: {
+        width: '100%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.white,
+        padding: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    actionTextContainer: {
+        flex: 1,
     },
     actionIconBadge: {
         width: 48,

@@ -199,6 +199,20 @@ class SyncService {
             return false;
         }
     }
+
+    /**
+     * Fetch work orders (Mock)
+     */
+    async fetchWorkOrders(): Promise<any[]> {
+        return []; // Triggers fallback to demo data
+    }
+
+    /**
+     * Update work order (Mock)
+     */
+    async updateWorkOrder(orderId: string, updates: any): Promise<boolean> {
+        return true;
+    }
 }
 
 export default new SyncService();

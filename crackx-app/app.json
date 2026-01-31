@@ -31,9 +31,6 @@
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
       "package": "com.crackx.app",
@@ -73,8 +70,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "794ab9fd-a4a6-4c11-87f0-c4798fb8f457"
+        "projectId": "8ba071e2-d638-4e2d-afa6-13ec1312acbd"
       }
-    }
+    },
+    "owner": "aravpalsule"
   }
 }

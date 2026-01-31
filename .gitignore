@@ -10,4 +10,3 @@ dist/
 build/
 *.sqlite3
 .DS_Store
-.agent/workflows

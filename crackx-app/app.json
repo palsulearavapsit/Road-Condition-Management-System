@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "jsEngine": "hermes",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -70,7 +71,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "8ba071e2-d638-4e2d-afa6-13ec1312acbd"
+        "projectId": "0175b264-cefb-4a13-8e59-1ea654827a6b"
       }
     },
     "owner": "aravpalsule"

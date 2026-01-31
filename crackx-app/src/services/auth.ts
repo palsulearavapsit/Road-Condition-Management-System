@@ -24,9 +24,19 @@ class AuthService {
 
         const hardcoded = HARDCODED_USERS[normalizedUsername];
         if (hardcoded && hardcoded.password === password) {
-            console.log(`[Auth] Hardcoded user found: ${normalizedUsername}`);
-            const { password: _, ...userData } = hardcoded;
-            user = userData as User;
+            // Check if we have a persisted version (with points)
+            const registeredUsers = await storageService.getRegisteredUsers();
+            const persisted = registeredUsers.find(u => u.username === normalizedUsername);
+
+            if (persisted) {
+                console.log(`[Auth] Using persisted data for demo user: ${normalizedUsername}`);
+                const { password: _, ...rest } = persisted;
+                user = rest as User;
+            } else {
+                console.log(`[Auth] Hardcoded user found: ${normalizedUsername}`);
+                const { password: _, ...userData } = hardcoded;
+                user = userData as User;
+            }
         }
         // 1. Check Generic Demo Credentials
         else if (normalizedUsername === DEMO_CREDENTIALS.username.toLowerCase() && password === DEMO_CREDENTIALS.password) {

@@ -56,6 +56,36 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
         }
     };
 
+    const handleDisapprove = async (username: string) => {
+        Alert.alert(
+            'Disapprove User',
+            `Are you sure you want to disapprove and remove ${username}?`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Disapprove',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            // 1. Remove from storage/backend
+                            await storageService.deleteRegisteredUser(username);
+
+                            // 2. Update UI immediately
+                            setPendingUsers(prev => prev.filter(user => user.username !== username));
+
+                            Alert.alert(t('success'), `User ${username} disapproved and removed.`);
+
+                            // 3. Reload specifically to ensure sync (optional but good)
+                            // loadUsers(); 
+                        } catch (error) {
+                            Alert.alert(t('error'), 'Failed to disapprove user');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const handleLogout = async () => {
         await authService.logout();
         onLogout();
@@ -101,12 +131,20 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
                                         </View>
                                     </View>
                                 </View>
-                                <TouchableOpacity
-                                    style={styles.approveButton}
-                                    onPress={() => handleApprove(user.username)}
-                                >
-                                    <Text style={styles.approveButtonText}>Approve</Text>
-                                </TouchableOpacity>
+                                <View style={styles.actionButtons}>
+                                    <TouchableOpacity
+                                        style={styles.approveButton}
+                                        onPress={() => handleApprove(user.username)}
+                                    >
+                                        <Text style={styles.approveButtonText}>Approve</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.disapproveButton}
+                                        onPress={() => handleDisapprove(user.username)}
+                                    >
+                                        <Text style={styles.disapproveButtonText}>Disapprove</Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
                         ))
                     )}
@@ -275,6 +313,21 @@ const styles = StyleSheet.create({
         color: COLORS.white,
         fontWeight: 'bold',
         fontSize: 12,
+    },
+    disapproveButton: {
+        backgroundColor: COLORS.danger,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 8,
+    },
+    disapproveButtonText: {
+        color: COLORS.white,
+        fontWeight: 'bold',
+        fontSize: 12,
+    },
+    actionButtons: {
+        flexDirection: 'row',
+        gap: 8,
     },
     statusBadge: {
         backgroundColor: '#dcfce7',

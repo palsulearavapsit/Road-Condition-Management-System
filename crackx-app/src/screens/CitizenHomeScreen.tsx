@@ -28,6 +28,7 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
     const [syncStats, setSyncStats] = useState({ pendingSync: 0, synced: 0 });
     const [isOnline, setIsOnline] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [users, setUsers] = useState<User[]>([]);
 
     useEffect(() => {
         loadData();
@@ -47,6 +48,10 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
 
             const online = await syncService.isOnline();
             setIsOnline(online);
+
+            // Load all users to find RSO officers
+            const allUsers = await storageService.getRegisteredUsers();
+            setUsers(allUsers);
         } catch (error) {
             console.error('Error loading data:', error);
         }
@@ -176,6 +181,13 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
                                 </View>
                                 <Text style={styles.reportLocation}>
                                     {report.location.zone?.toUpperCase()} • {report.location.roadName || 'Unknown Location'}
+                                    {(() => {
+                                        const rsoOfficer = users.find(u => u.role === 'rso' && u.zone === report.location.zone);
+                                        if (rsoOfficer) {
+                                            return ` • RSO: ${rsoOfficer.username.charAt(0).toUpperCase() + rsoOfficer.username.slice(1)}`;
+                                        }
+                                        return '';
+                                    })()}
                                 </Text>
                                 <View style={styles.reportFooter}>
                                     <Text style={styles.reportDate}>

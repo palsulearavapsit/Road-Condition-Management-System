@@ -67,6 +67,22 @@ class StorageService {
         }
     }
 
+    async deleteRegisteredUser(username: string): Promise<void> {
+        // Attempt to delete from backend
+        try {
+            await apiService.deleteUser(username);
+        } catch (e) {
+            console.log('User delete sync failed');
+        }
+
+        // Get local users directly to avoid re-fetching stale data from backend
+        const usersStr = await AsyncStorage.getItem(STORAGE_KEYS.REGISTERED_USERS);
+        const users = usersStr ? JSON.parse(usersStr) : [];
+
+        const filteredUsers = users.filter((u: any) => u.username !== username);
+        await AsyncStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(filteredUsers));
+    }
+
     // Reports Management
     async saveReport(report: Report): Promise<void> {
         const reports = await this.getReports();

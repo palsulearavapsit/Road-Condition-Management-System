@@ -38,6 +38,7 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
     const [photoUri, setPhotoUri] = useState<string>('');
     const [location, setLocation] = useState<LocationType | null>(null);
     const [manualAddress, setManualAddress] = useState('');
+    const [isEditingAddress, setIsEditingAddress] = useState(false);
     const [aiResult, setAiResult] = useState<any>(null);
     const [loading, setLoading] = useState(false);
 
@@ -261,11 +262,23 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                                 {location && (
                                     <>
                                         <View style={styles.locationCard}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                                                <Ionicons name="pin" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
-                                                <Text style={[styles.locationText, { marginBottom: 0 }]}>
-                                                    {location.roadName || 'Unknown Road'}
-                                                </Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                                    <Ionicons name="pin" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
+                                                    <Text style={[styles.locationText, { marginBottom: 0, flex: 1 }]}>
+                                                        {manualAddress || location.roadName || 'Unknown Road'}
+                                                    </Text>
+                                                </View>
+                                                <TouchableOpacity
+                                                    onPress={() => setIsEditingAddress(!isEditingAddress)}
+                                                    style={{ padding: 8 }}
+                                                >
+                                                    <Ionicons
+                                                        name={isEditingAddress ? "close-circle" : "create-outline"}
+                                                        size={24}
+                                                        color={isEditingAddress ? COLORS.danger : COLORS.primary}
+                                                    />
+                                                </TouchableOpacity>
                                             </View>
                                             <Text style={styles.locationSubtext}>
                                                 {location.area || 'Unknown Area'}
@@ -274,6 +287,22 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                                                 Zone: {location.zone}
                                             </Text>
                                         </View>
+
+                                        {/* Manual Address Input */}
+                                        {isEditingAddress && (
+                                            <View style={{ marginBottom: 16 }}>
+                                                <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.dark, marginBottom: 8 }}>
+                                                    Edit Address Details
+                                                </Text>
+                                                <TextInput
+                                                    style={styles.input}
+                                                    placeholder="Enter road name, landmarks, or area details..."
+                                                    value={manualAddress}
+                                                    onChangeText={setManualAddress}
+                                                    multiline
+                                                />
+                                            </View>
+                                        )}
 
                                         {/* Map Component */}
                                         <View style={{ height: 300, marginBottom: 16 }}>

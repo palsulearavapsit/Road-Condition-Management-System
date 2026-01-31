@@ -38,6 +38,22 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
 
     const loadData = async () => {
         try {
+            // Seed Demo Users if missing to ensure points system works
+            const currentUsers = await storageService.getRegisteredUsers();
+            const DEMO_USERS = [
+                { id: 'rso_rugved', username: 'rugved', password: 'rugved', role: 'rso', zone: 'zone1', isApproved: true, points: 0 },
+                { id: 'rso_deep', username: 'deep', password: 'deep', role: 'rso', zone: 'zone4', isApproved: true, points: 0 },
+                { id: 'rso_atharva', username: 'atharva', password: 'atharva', role: 'rso', zone: 'zone8', isApproved: true, points: 0 },
+                { id: 'cit_arav', username: 'arav', password: 'arav', role: 'citizen', isApproved: true, points: 0 },
+                { id: 'cit_abbas', username: 'abbas', password: 'abbas', role: 'citizen', isApproved: true, points: 0 },
+            ];
+
+            for (const demo of DEMO_USERS) {
+                if (!currentUsers.find(u => u.username === demo.username)) {
+                    await storageService.saveRegisteredUser(demo);
+                }
+            }
+
             const [allReports, allUsers, current] = await Promise.all([
                 storageService.getReports(),
                 storageService.getRegisteredUsers(),
@@ -87,6 +103,23 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
             loadData();
         } catch (error) {
             Alert.alert('Error', 'Failed to award points');
+        }
+    };
+
+    const disapprovePoints = async (reportId: string, type: 'report' | 'repair') => {
+        try {
+            const reportIndex = reports.findIndex(r => r.id === reportId);
+            if (reportIndex >= 0) {
+                const updatedReport = { ...reports[reportIndex] };
+                if (type === 'report') updatedReport.reportApprovedForPoints = true; // Mark as processed
+                if (type === 'repair') updatedReport.repairApprovedForPoints = true; // Mark as processed
+                await storageService.saveReport(updatedReport);
+            }
+
+            Alert.alert('Disapproved', 'Point request has been disapproved');
+            loadData();
+        } catch (error) {
+            Alert.alert('Error', 'Failed to disapprove request');
         }
     };
 
@@ -182,22 +215,83 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
                                             <Text style={styles.cardDate}>{formatDate(report.createdAt)}</Text>
                                         </View>
 
+                                        {/* Zone and RSO Officer Info */}
+                                        {report.location?.zone && (
+                                            <View style={styles.zoneInfoContainer}>
+                                                <View style={styles.zoneInfo}>
+                                                    <Ionicons name="location-outline" size={14} color={COLORS.primary} />
+                                                    <Text style={styles.zoneText}>
+                                                        {report.location.zone.replace('zone', 'Zone ')}
+                                                    </Text>
+                                                </View>
+                                                {(() => {
+                                                    const rsoOfficer = users.find(u => u.role === 'rso' && u.zone === report.location.zone);
+                                                    if (rsoOfficer) {
+                                                        return (
+                                                            <View style={styles.rsoInfo}>
+                                                                <Ionicons name="shield-checkmark-outline" size={14} color={COLORS.success} />
+                                                                <Text style={styles.rsoText}>
+                                                                    RSO: {rsoOfficer.username.charAt(0).toUpperCase() + rsoOfficer.username.slice(1)}
+                                                                </Text>
+                                                            </View>
+                                                        );
+                                                    }
+                                                    return null;
+                                                })()}
+                                            </View>
+                                        )}
+
                                         <View style={styles.actionRow}>
                                             {report.status === 'pending' && !report.reportApprovedForPoints && (
-                                                <TouchableOpacity
-                                                    style={styles.awardButton}
-                                                    onPress={() => awardPoints(report.id, report.citizenId, 15, 'report')}
-                                                >
-                                                    <Text style={styles.awardButtonText}>Approve & Give 15 Pts</Text>
-                                                </TouchableOpacity>
+                                                <>
+                                                    <TouchableOpacity
+                                                        style={styles.awardButton}
+                                                        onPress={() => awardPoints(report.id, report.citizenId, 15, 'report')}
+                                                    >
+                                                        <Ionicons name="checkmark-circle" size={18} color={COLORS.white} style={{ marginRight: 6 }} />
+                                                        <Text style={styles.awardButtonText}>Approve & Give 15 Pts</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity
+                                                        style={[styles.awardButton, styles.disapproveButton]}
+                                                        onPress={() => disapprovePoints(report.id, 'report')}
+                                                    >
+                                                        <Ionicons name="close-circle" size={18} color={COLORS.white} style={{ marginRight: 6 }} />
+                                                        <Text style={styles.awardButtonText}>Disapprove</Text>
+                                                    </TouchableOpacity>
+                                                </>
                                             )}
                                             {report.status === 'completed' && !report.repairApprovedForPoints && (
-                                                <TouchableOpacity
-                                                    style={[styles.awardButton, { backgroundColor: COLORS.success }]}
-                                                    onPress={() => awardPoints(report.id, report.rsoId || report.citizenId, 20, 'repair')}
-                                                >
-                                                    <Text style={styles.awardButtonText}>Verify & Give 20 Pts to RSO</Text>
-                                                </TouchableOpacity>
+                                                <>
+                                                    <TouchableOpacity
+                                                        style={[styles.awardButton, { backgroundColor: COLORS.success }]}
+                                                        onPress={() => {
+                                                            let targetId = report.rsoId;
+
+                                                            // Fallback: Try to find RSO by zone if rsoId is missing
+                                                            if (!targetId && report.location.zone) {
+                                                                const zoneRso = users.find(u => u.role === 'rso' && u.zone === report.location.zone);
+                                                                if (zoneRso) targetId = zoneRso.username;
+                                                            }
+
+                                                            if (!targetId) {
+                                                                Alert.alert('Error', 'Could not identify the RSO who completed this repair.');
+                                                                return;
+                                                            }
+
+                                                            awardPoints(report.id, targetId, 20, 'repair');
+                                                        }}
+                                                    >
+                                                        <Ionicons name="checkmark-circle" size={18} color={COLORS.white} style={{ marginRight: 6 }} />
+                                                        <Text style={styles.awardButtonText}>Verify & Give 20 Pts</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity
+                                                        style={[styles.awardButton, styles.disapproveButton]}
+                                                        onPress={() => disapprovePoints(report.id, 'repair')}
+                                                    >
+                                                        <Ionicons name="close-circle" size={18} color={COLORS.white} style={{ marginRight: 6 }} />
+                                                        <Text style={styles.awardButtonText}>Disapprove</Text>
+                                                    </TouchableOpacity>
+                                                </>
                                             )}
                                         </View>
                                     </View>
@@ -380,6 +474,7 @@ const styles = StyleSheet.create({
     },
     actionRow: {
         flexDirection: 'row',
+        gap: 8,
     },
     awardButton: {
         flex: 1,
@@ -387,6 +482,11 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         borderRadius: 10,
         alignItems: 'center',
+        flexDirection: 'row',
+        justifyContent: 'center',
+    },
+    disapproveButton: {
+        backgroundColor: COLORS.danger,
     },
     awardButtonText: {
         color: COLORS.white,
@@ -458,5 +558,39 @@ const styles = StyleSheet.create({
         fontSize: 16,
         marginTop: 12,
         fontWeight: '500',
+    },
+    zoneInfoContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+        gap: 12,
+    },
+    zoneInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#eff6ff',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 8,
+    },
+    zoneText: {
+        color: COLORS.primary,
+        fontSize: 12,
+        fontWeight: '600',
+        marginLeft: 4,
+    },
+    rsoInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f0fdf4',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 8,
+    },
+    rsoText: {
+        color: COLORS.success,
+        fontSize: 12,
+        fontWeight: '600',
+        marginLeft: 4,
     },
 });

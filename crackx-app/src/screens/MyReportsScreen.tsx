@@ -8,6 +8,7 @@ import {
     Image,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
 import { Report } from '../types';
 import storageService from '../services/storage';
@@ -24,6 +25,7 @@ interface MyReportsScreenProps {
 export default function MyReportsScreen({ onNavigate, onBack, onLogout }: MyReportsScreenProps) {
     const { t } = useTranslation();
     const [reports, setReports] = useState<Report[]>([]);
+    const [users, setUsers] = useState<any[]>([]);
 
     useEffect(() => {
         loadReports();
@@ -38,6 +40,10 @@ export default function MyReportsScreen({ onNavigate, onBack, onLogout }: MyRepo
                     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
                 ));
             }
+
+            // Load all users to find RSO officers
+            const allUsers = await storageService.getRegisteredUsers();
+            setUsers(allUsers);
         } catch (error) {
             console.error('Error loading reports:', error);
         }
@@ -52,6 +58,27 @@ export default function MyReportsScreen({ onNavigate, onBack, onLogout }: MyRepo
             onLogout={onLogout}
         >
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+                {/* Stats Summary */}
+                <View style={styles.statsCard}>
+                    <View style={styles.statItem}>
+                        <Text style={styles.statValue}>{reports.length}</Text>
+                        <Text style={styles.statLabel}>Total</Text>
+                    </View>
+                    <View style={styles.divider} />
+                    <View style={styles.statItem}>
+                        <Text style={[styles.statValue, { color: COLORS.warning }]}>
+                            {reports.filter(r => r.status === 'pending').length}
+                        </Text>
+                        <Text style={styles.statLabel}>Pending</Text>
+                    </View>
+                    <View style={styles.divider} />
+                    <View style={styles.statItem}>
+                        <Text style={[styles.statValue, { color: COLORS.success }]}>
+                            {reports.filter(r => r.status === 'completed').length}
+                        </Text>
+                        <Text style={styles.statLabel}>Fixed</Text>
+                    </View>
+                </View>
                 {reports.length === 0 ? (
                     <View style={styles.emptyState}>
                         <Text style={styles.emptyIcon}>📭</Text>
@@ -104,9 +131,33 @@ export default function MyReportsScreen({ onNavigate, onBack, onLogout }: MyRepo
                                     {report.location.roadName || report.location.address || 'Unknown location'}
                                 </Text>
                                 {report.location.zone && (
-                                    <Text style={styles.zoneText}>Zone: {report.location.zone.toUpperCase()}</Text>
+                                    <View style={styles.zoneContainer}>
+                                        <Text style={styles.zoneText}>Zone: {report.location.zone.toUpperCase()}</Text>
+                                        {(() => {
+                                            const rsoOfficer = users.find(u => u.role === 'rso' && u.zone === report.location.zone);
+                                            if (rsoOfficer) {
+                                                return (
+                                                    <Text style={styles.rsoOfficerText}>
+                                                        • RSO: {rsoOfficer.username.charAt(0).toUpperCase() + rsoOfficer.username.slice(1)}
+                                                    </Text>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
+                                    </View>
                                 )}
                             </View>
+
+                            {/* RSO Details (If Assigned) */}
+                            {report.rsoId && (
+                                <View style={styles.rsoSection}>
+                                    <Text style={styles.rsoLabel}>Assigned Officer:</Text>
+                                    <View style={styles.rsoRow}>
+                                        <Ionicons name="person-circle-outline" size={20} color={COLORS.primary} />
+                                        <Text style={styles.rsoName}>{report.rsoId}</Text>
+                                    </View>
+                                </View>
+                            )}
 
                             {/* AI Detection Results */}
                             {report.aiDetection && (
@@ -275,6 +326,17 @@ const styles = StyleSheet.create({
         color: COLORS.primary,
         fontWeight: '700',
     },
+    zoneContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    rsoOfficerText: {
+        fontSize: 12,
+        color: COLORS.success,
+        fontWeight: '600',
+    },
     aiSection: {
         paddingHorizontal: 16,
         paddingBottom: 12,
@@ -357,5 +419,61 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         borderWidth: 2,
         borderColor: COLORS.success,
+    },
+    statsCard: {
+        flexDirection: 'row',
+        backgroundColor: COLORS.white,
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 20,
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderWidth: 1,
+        borderColor: COLORS.secondary,
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    statItem: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    divider: {
+        width: 1,
+        height: 30,
+        backgroundColor: COLORS.border,
+    },
+    statValue: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: COLORS.dark,
+        marginBottom: 4,
+    },
+    statLabel: {
+        fontSize: 12,
+        color: COLORS.gray,
+        fontWeight: '600',
+    },
+    rsoSection: {
+        paddingHorizontal: 16,
+        paddingBottom: 12,
+        marginTop: 4,
+    },
+    rsoLabel: {
+        fontSize: 12,
+        color: COLORS.gray,
+        marginBottom: 4,
+    },
+    rsoRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    rsoName: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.dark,
     },
 });

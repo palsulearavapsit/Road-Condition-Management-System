@@ -61,6 +61,30 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                 setUser(user);
                 let zoneReports = await storageService.getReportsByZone(user.zone);
 
+                // Self-Healing: Deduplicate Reports by ID
+                const uniqueReports = new Map();
+                let hasDuplicates = false;
+
+                zoneReports.forEach(r => {
+                    if (uniqueReports.has(r.id)) {
+                        hasDuplicates = true;
+                        // Keep the one with later updatedAt or status completed
+                        const existing = uniqueReports.get(r.id);
+                        if (new Date(r.updatedAt) > new Date(existing.updatedAt) || r.status === 'completed') {
+                            uniqueReports.set(r.id, r);
+                        }
+                    } else {
+                        uniqueReports.set(r.id, r);
+                    }
+                });
+
+                if (hasDuplicates) {
+                    console.log('Found and removing duplicate reports...');
+                    zoneReports = Array.from(uniqueReports.values());
+                    // We should ideally save this back, but storageService does not expose saveAll.
+                    // For now, the UI will just show clean data.
+                }
+
                 if (sortBySeverity) {
                     zoneReports = zoneReports.sort((a, b) => {
                         const severityOrder = { high: 3, medium: 2, low: 1 };
@@ -71,6 +95,7 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                 }
 
                 setReports(zoneReports);
+                // ... rest of the function
 
                 // Check if there are any new pending reports to notify about
                 const pending = zoneReports.filter(r => r.status === 'pending');

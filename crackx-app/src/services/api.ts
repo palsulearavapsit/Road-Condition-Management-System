@@ -74,6 +74,17 @@ class ApiService {
             return false;
         }
     }
+
+    async deleteUser(username: string): Promise<boolean> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/users/${username}`, {
+                method: 'DELETE',
+            });
+            return response.ok;
+        } catch (e) {
+            return false;
+        }
+    }
 }
 
 export default new ApiService();

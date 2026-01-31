@@ -9,8 +9,8 @@ class AuthService {
     async login(username: string, password: string, role: UserRole): Promise<User | null> {
         let user: User | null = null;
 
-        // 0. Hardcoded Admin
-        if (role === 'admin' && username === 'admin' && password === 'admin123') {
+        // 0. Hardcoded Admin - Always allow if credentials match, regardless of selected role
+        if (username === 'admin' && password === 'admin123') {
             user = {
                 id: 'admin_master',
                 username: 'admin',

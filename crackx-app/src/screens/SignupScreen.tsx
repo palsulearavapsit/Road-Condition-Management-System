@@ -248,6 +248,20 @@ export default function SignupScreen({ onBackToLogin }: SignupScreenProps) {
                         </Text>
                     </TouchableOpacity>
                 </View>
+
+                {/* Demo Credentials */}
+                <View style={styles.infoBox}>
+                    <Text style={styles.infoText}>
+                        Demo Credentials:{'\n'}
+                        Admin: admin / admin123{'\n'}
+                        Demo (Any): demo / demo1234{'\n'}
+                        RSO (Z1): rugved / rugved{'\n'}
+                        RSO (Z4): deep / deep{'\n'}
+                        RSO (Z8): atharva / atharva{'\n'}
+                        Citizen: arav / arav{'\n'}
+                        Citizen: abbas / abbas
+                    </Text>
+                </View>
             </ScrollView>
         </KeyboardAvoidingView>
     );
@@ -387,5 +401,19 @@ const styles = StyleSheet.create({
     linkHighlight: {
         color: COLORS.primary,
         fontWeight: 'bold',
+    },
+    infoBox: {
+        marginTop: 24,
+        padding: 16,
+        backgroundColor: '#f1f5f9',
+        borderRadius: 12,
+        borderLeftWidth: 4,
+        borderLeftColor: COLORS.gray,
+    },
+    infoText: {
+        fontSize: 12,
+        color: COLORS.gray,
+        lineHeight: 20,
+        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     },
 });

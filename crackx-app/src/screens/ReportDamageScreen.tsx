@@ -8,9 +8,11 @@ import {
     Image,
     Alert,
     ActivityIndicator,
+    Platform,
     TextInput,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../constants';
 import { ReportingMode, Report, Location as LocationType } from '../types';
@@ -45,20 +47,27 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
     };
 
     const handleTakePhoto = async () => {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') {
-            Alert.alert(t('error'), 'Camera permission is required');
-            return;
+        if (Platform.OS !== 'web') {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert(t('error'), 'Camera permission is required');
+                return;
+            }
         }
 
         const result = await ImagePicker.launchCameraAsync({
             allowsEditing: true,
             aspect: [4, 3],
-            quality: 0.8,
+            quality: 0.5,
+            base64: true,
         });
 
-        if (!result.canceled) {
-            setPhotoUri(result.assets[0].uri);
+        if (!result.canceled && result.assets && result.assets[0]) {
+            const uri = Platform.OS === 'web' && result.assets[0].base64
+                ? `data:image/jpeg;base64,${result.assets[0].base64}`
+                : result.assets[0].uri;
+
+            setPhotoUri(uri);
             setStep('location');
             if (reportingMode === 'on-site') {
                 captureLocation();
@@ -67,21 +76,28 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
     };
 
     const handleChooseFromGallery = async () => {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-            Alert.alert(t('error'), 'Media library permission is required');
-            return;
+        if (Platform.OS !== 'web') {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert(t('error'), 'Media library permission is required');
+                return;
+            }
         }
 
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
             aspect: [4, 3],
-            quality: 0.8,
+            quality: 0.5,
+            base64: true,
         });
 
-        if (!result.canceled) {
-            setPhotoUri(result.assets[0].uri);
+        if (!result.canceled && result.assets && result.assets[0]) {
+            const uri = Platform.OS === 'web' && result.assets[0].base64
+                ? `data:image/jpeg;base64,${result.assets[0].base64}`
+                : result.assets[0].uri;
+
+            setPhotoUri(uri);
             setStep('location');
             if (reportingMode === 'on-site') {
                 captureLocation();
@@ -136,14 +152,15 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                 return;
             }
 
-            const finalLocation: LocationType = reportingMode === 'on-site' && location
-                ? location
-                : {
-                    latitude: 0,
-                    longitude: 0,
-                    address: manualAddress,
-                    zone: 'zone1', // Default for manual entry
-                };
+            const finalLocation: LocationType = location ? {
+                ...location,
+                address: manualAddress || location.address || location.roadName || '',
+            } : {
+                latitude: 0,
+                longitude: 0,
+                address: manualAddress,
+                zone: 'zone1', // Default for manual entry
+            };
 
             const report: Report = {
                 id: generateId(),
@@ -187,7 +204,7 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                             style={styles.modeCard}
                             onPress={() => handleModeSelect('on-site')}
                         >
-                            <Text style={styles.modeIcon}>📍</Text>
+                            <Ionicons name="location-outline" size={48} color={COLORS.primary} style={{ marginBottom: 12 }} />
                             <Text style={styles.modeTitle}>{t('on_site')}</Text>
                             <Text style={styles.modeDesc}>{t('on_site_desc')}</Text>
                         </TouchableOpacity>
@@ -195,7 +212,7 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                             style={styles.modeCard}
                             onPress={() => handleModeSelect('from-elsewhere')}
                         >
-                            <Text style={styles.modeIcon}>🗺️</Text>
+                            <Ionicons name="map-outline" size={48} color={COLORS.primary} style={{ marginBottom: 12 }} />
                             <Text style={styles.modeTitle}>{t('from_elsewhere')}</Text>
                             <Text style={styles.modeDesc}>{t('from_elsewhere_desc')}</Text>
                         </TouchableOpacity>
@@ -216,15 +233,15 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                         ) : (
                             <View>
                                 <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
-                                    <Text style={styles.photoButtonIcon}>📸</Text>
+                                    <Ionicons name="camera" size={48} color={COLORS.white} style={{ marginBottom: 8 }} />
                                     <Text style={styles.photoButtonText}>{t('take_photo')}</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={[styles.photoButton, styles.photoButtonSecondary]}
                                     onPress={handleChooseFromGallery}
                                 >
-                                    <Text style={styles.photoButtonIcon}>🖼️</Text>
-                                    <Text style={styles.photoButtonText}>{t('choose_from_gallery')}</Text>
+                                    <Ionicons name="images" size={48} color={COLORS.primary} style={{ marginBottom: 8 }} />
+                                    <Text style={[styles.photoButtonText, { color: COLORS.primary }]}>{t('choose_from_gallery')}</Text>
                                 </TouchableOpacity>
                             </View>
                         )}
@@ -244,9 +261,12 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                                 {location && (
                                     <>
                                         <View style={styles.locationCard}>
-                                            <Text style={styles.locationText}>
-                                                📍 {location.roadName || 'Unknown Road'}
-                                            </Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                                <Ionicons name="pin" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
+                                                <Text style={[styles.locationText, { marginBottom: 0 }]}>
+                                                    {location.roadName || 'Unknown Road'}
+                                                </Text>
+                                            </View>
                                             <Text style={styles.locationSubtext}>
                                                 {location.area || 'Unknown Area'}
                                             </Text>
@@ -271,9 +291,25 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                             </View>
                         ) : (
                             <View>
+                                <TouchableOpacity
+                                    style={[styles.button, { backgroundColor: COLORS.secondary, marginBottom: 16, borderWidth: 1, borderColor: COLORS.primary, flexDirection: 'row', justifyContent: 'center' }]}
+                                    onPress={captureLocation}
+                                >
+                                    <Ionicons name="navigate" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
+                                    <Text style={[styles.buttonText, { color: COLORS.primary }]}>
+                                        Use Current GPS Location
+                                    </Text>
+                                </TouchableOpacity>
+
+                                {location && (
+                                    <Text style={{ marginBottom: 12, color: COLORS.success, fontWeight: 'bold', marginLeft: 4 }}>
+                                        Coordinates: {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+                                    </Text>
+                                )}
+
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Enter road name and area"
+                                    placeholder="Enter details about location (Landmarks, Road Name)..."
                                     value={manualAddress}
                                     onChangeText={setManualAddress}
                                     multiline

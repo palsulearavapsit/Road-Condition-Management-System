@@ -1,0 +1,29 @@
+{
+  "id": "1769853578425_132x5kgug",
+  "citizenId": "user_1769806643170",
+  "reportingMode": "from-elsewhere",
+  "location": {
+    "latitude": 0,
+    "longitude": 0,
+    "address": "thakur complex , majiwada  Thane",
+    "zone": "zone1"
+  },
+  "photoUri": "blob:http://localhost:8081/0e37e435-ec6f-460e-ba19-09778a910b9e",
+  "aiDetection": {
+    "damageType": "pothole",
+    "confidence": 0.81,
+    "severity": "high",
+    "boundingBox": {
+      "x": 0.2076992320104998,
+      "y": 0.2903762384275846,
+      "width": 0.3533753373920571,
+      "height": 0.5237037936370617
+    }
+  },
+  "status": "pending",
+  "syncStatus": "synced",
+  "createdAt": "2026-01-31T09:59:38.425Z",
+  "updatedAt": "2026-01-31T09:59:38.425Z",
+  "syncedAt": "2026-01-31T16:45:39.214042",
+  "serverStatus": "synced"
+}

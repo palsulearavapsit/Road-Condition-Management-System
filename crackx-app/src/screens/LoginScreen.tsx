@@ -120,7 +120,7 @@ export default function LoginScreen({ onLoginSuccess, onSignupClick }: LoginScre
                             style={styles.input}
                             value={password}
                             onChangeText={setPassword}
-                            placeholder="demo123"
+                            placeholder="demo1234"
                             secureTextEntry
                             autoCapitalize="none"
                         />
@@ -189,7 +189,13 @@ export default function LoginScreen({ onLoginSuccess, onSignupClick }: LoginScre
                     <View style={styles.infoBox}>
                         <Text style={styles.infoText}>
                             Demo Credentials:{'\n'}
-                            Citizen: demo / demo123
+                            Admin: admin / admin123{'\n'}
+                            Demo (Any): demo / demo1234{'\n'}
+                            RSO (Z1): rugved / rugved{'\n'}
+                            RSO (Z4): deep / deep{'\n'}
+                            RSO (Z8): atharva / atharva{'\n'}
+                            Citizen: arav / arav{'\n'}
+                            Citizen: abbas / abbas
                         </Text>
                     </View>
                 </View>

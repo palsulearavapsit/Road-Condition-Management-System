@@ -3,7 +3,7 @@ import { Zone } from '../types';
 // Demo Credentials
 export const DEMO_CREDENTIALS = {
     username: 'demo',
-    password: 'demo123',
+    password: 'demo1234',
 };
 
 // Zone Definitions for Solapur Municipal Corporation

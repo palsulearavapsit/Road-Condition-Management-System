@@ -1,8 +1,28 @@
+/**
+ * Enhanced Push Notifications Service
+ * Handles Expo Push Notifications for real-time alerts
+ */
+
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Report } from '../types';
 
+export interface PushNotification {
+    id: string;
+    title: string;
+    body: string;
+    data?: any;
+    timestamp: string;
+    read: boolean;
+}
+
 class NotificationService {
+    private readonly STORAGE_KEY = '@crackx_notifications';
+    private readonly TOKEN_KEY = '@crackx_push_token';
+    private expoPushToken: string | null = null;
+
     constructor() {
         this.configureNotifications();
     }
@@ -12,7 +32,7 @@ class NotificationService {
             handleNotification: async () => ({
                 shouldShowAlert: true,
                 shouldPlaySound: true,
-                shouldSetBadge: false,
+                shouldSetBadge: true,
                 shouldShowBanner: true,
                 shouldShowList: true,
             }),
@@ -25,6 +45,15 @@ class NotificationService {
                 vibrationPattern: [0, 250, 250, 250],
                 lightColor: '#FF231F7C',
             });
+
+            // High priority channel
+            Notifications.setNotificationChannelAsync('high-priority', {
+                name: 'High Priority Alerts',
+                importance: Notifications.AndroidImportance.MAX,
+                vibrationPattern: [0, 500, 250, 500],
+                lightColor: '#ef4444',
+                sound: 'default',
+            });
         }
     }
 
@@ -33,37 +62,220 @@ class NotificationService {
         return status === 'granted';
     }
 
+    /**
+     * Register for push notifications and get Expo token
+     */
+    async registerForPushNotifications(): Promise<string | null> {
+        try {
+            if (!Device.isDevice) {
+                console.log('Push notifications only work on physical devices');
+                return null;
+            }
+
+            const { status: existingStatus } = await Notifications.getPermissionsAsync();
+            let finalStatus = existingStatus;
+
+            if (existingStatus !== 'granted') {
+                const { status } = await Notifications.requestPermissionsAsync();
+                finalStatus = status;
+            }
+
+            if (finalStatus !== 'granted') {
+                console.log('Permission to receive notifications was denied');
+                return null;
+            }
+
+            const token = (await Notifications.getExpoPushTokenAsync()).data;
+            this.expoPushToken = token;
+            await AsyncStorage.setItem(this.TOKEN_KEY, token);
+
+            console.log('✅ Push notification token registered:', token);
+            return token;
+        } catch (error) {
+            console.error('Error registering for push notifications:', error);
+            return null;
+        }
+    }
+
     async scheduleReportSubmissionNotification(reportId: string) {
-        await Notifications.scheduleNotificationAsync({
+        const id = await Notifications.scheduleNotificationAsync({
             content: {
                 title: "Report Submitted 🚀",
                 body: `Your report #${reportId.slice(-4)} has been submitted successfully to the zone office.`,
-                data: { reportId },
+                data: { reportId, type: 'submission' },
             },
-            trigger: null, // Send immediately
+            trigger: null,
+        });
+
+        await this.saveNotificationToStorage({
+            id,
+            title: "Report Submitted 🚀",
+            body: `Your report #${reportId.slice(-4)} has been submitted successfully`,
+            data: { reportId, type: 'submission' },
+            timestamp: new Date().toISOString(),
+            read: false,
         });
     }
 
     async scheduleRSOAssignmentNotification(reportId: string, address: string) {
-        await Notifications.scheduleNotificationAsync({
+        const id = await Notifications.scheduleNotificationAsync({
             content: {
                 title: "New Task Assigned 🚧",
                 body: `New damage report at ${address} requires your attention.`,
-                data: { reportId },
+                data: { reportId, type: 'assignment' },
             },
             trigger: null,
+        });
+
+        await this.saveNotificationToStorage({
+            id,
+            title: "New Task Assigned 🚧",
+            body: `New damage report at ${address}`,
+            data: { reportId, type: 'assignment' },
+            timestamp: new Date().toISOString(),
+            read: false,
         });
     }
 
     async scheduleCompletionNotification(reportId: string) {
-        await Notifications.scheduleNotificationAsync({
+        const id = await Notifications.scheduleNotificationAsync({
             content: {
                 title: "Repair Verified ✅",
                 body: `Report #${reportId.slice(-4)} marked as completed. Great work!`,
-                data: { reportId },
+                data: { reportId, type: 'completion' },
             },
             trigger: null,
         });
+
+        await this.saveNotificationToStorage({
+            id,
+            title: "Repair Verified ✅",
+            body: `Report #${reportId.slice(-4)} completed`,
+            data: { reportId, type: 'completion' },
+            timestamp: new Date().toISOString(),
+            read: false,
+        });
+    }
+
+    /**
+     * Notify when report status changes
+     */
+    async notifyStatusChange(reportId: string, newStatus: string): Promise<void> {
+        const statusMessages: Record<string, { title: string; body: string }> = {
+            pending: {
+                title: 'Report Received',
+                body: 'Your road damage report is pending review.',
+            },
+            'in-progress': {
+                title: 'Repair Started!',
+                body: 'Repair work on your reported road damage has begun.',
+            },
+            completed: {
+                title: '✅ Repair Completed',
+                body: 'The road damage you reported has been fixed!',
+            },
+        };
+
+        const message = statusMessages[newStatus];
+        if (message) {
+            const id = await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: message.title,
+                    body: message.body,
+                    data: { reportId, type: 'status_change', status: newStatus },
+                },
+                trigger: null,
+            });
+
+            await this.saveNotificationToStorage({
+                id,
+                title: message.title,
+                body: message.body,
+                data: { reportId, type: 'status_change', status: newStatus },
+                timestamp: new Date().toISOString(),
+                read: false,
+            });
+        }
+    }
+
+    /**
+     * Get all notifications
+     */
+    async getNotifications(): Promise<PushNotification[]> {
+        try {
+            const notificationsJson = await AsyncStorage.getItem(this.STORAGE_KEY);
+            if (!notificationsJson) return [];
+            const notifications: PushNotification[] = JSON.parse(notificationsJson);
+            return notifications.sort(
+                (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            );
+        } catch (error) {
+            return [];
+        }
+    }
+
+    /**
+     * Get unread count
+     */
+    async getUnreadCount(): Promise<number> {
+        const notifications = await this.getNotifications();
+        return notifications.filter((n) => !n.read).length;
+    }
+
+    /**
+     * Mark as read
+     */
+    async markAsRead(notificationId: string): Promise<void> {
+        try {
+            const notifications = await this.getNotifications();
+            const updated = notifications.map((n) =>
+                n.id === notificationId ? { ...n, read: true } : n
+            );
+            await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+        }
+    }
+
+    /**
+     * Mark all as read
+     */
+    async markAllAsRead(): Promise<void> {
+        try {
+            const notifications = await this.getNotifications();
+            const updated = notifications.map((n) => ({ ...n, read: true }));
+            await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
+        } catch (error) {
+            console.error('Error marking all as read:', error);
+        }
+    }
+
+    /**
+     * Save notification to storage
+     */
+    private async saveNotificationToStorage(notification: PushNotification): Promise<void> {
+        try {
+            const notifications = await this.getNotifications();
+            notifications.unshift(notification);
+            const trimmed = notifications.slice(0, 100);
+            await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(trimmed));
+        } catch (error) {
+            console.error('Error saving notification:', error);
+        }
+    }
+
+    /**
+     * Get push token
+     */
+    async getPushToken(): Promise<string | null> {
+        if (this.expoPushToken) return this.expoPushToken;
+        try {
+            const token = await AsyncStorage.getItem(this.TOKEN_KEY);
+            this.expoPushToken = token;
+            return token;
+        } catch (error) {
+            return null;
+        }
     }
 }
 

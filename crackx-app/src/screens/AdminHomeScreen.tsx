@@ -6,13 +6,15 @@ import {
     StyleSheet,
     ScrollView,
     Alert,
+    Image,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { COLORS, ZONES } from '../constants';
 import { Report } from '../types';
 import storageService from '../services/storage';
 import authService from '../services/auth';
-import { calculateRoadHealthIndex } from '../utils';
+import { calculateRoadHealthIndex, formatDate, getSeverityColor } from '../utils';
 import DashboardLayout from '../components/DashboardLayout';
 
 interface AdminHomeScreenProps {
@@ -25,6 +27,9 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
     const [reports, setReports] = useState<Report[]>([]);
     const [zoneStats, setZoneStats] = useState<any>({});
     const [pendingRSOs, setPendingRSOs] = useState<any[]>([]);
+
+    const [filter, setFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed'>('all');
 
     useEffect(() => {
         loadData();
@@ -80,11 +85,25 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
         onLogout();
     };
 
-    const totalStats = {
-        total: reports.length,
-        pending: reports.filter(r => r.status === 'pending').length,
-        completed: reports.filter(r => r.status === 'completed').length,
+    // Filter Logic (Zone Only)
+    const filteredReports = filter === 'all'
+        ? reports
+        : reports.filter(r => r.location.zone === filter);
+
+    const displayedStats = {
+        total: filteredReports.length,
+        pending: filteredReports.filter(r => r.status === 'pending').length,
+        completed: filteredReports.filter(r => r.status === 'completed').length,
     };
+
+    const displayedZones = filter === 'all'
+        ? ZONES
+        : ZONES.filter(z => z.id === filter);
+
+    // List Logic (Zone + Status)
+    const listedReports = filteredReports.filter(r =>
+        statusFilter === 'all' ? true : r.status === statusFilter
+    );
 
     return (
         <DashboardLayout
@@ -102,7 +121,7 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
                         onPress={() => onNavigate('UserManagement')}
                     >
                         <View style={styles.actionIconBadge}>
-                            <Text style={{ fontSize: 24 }}>👥</Text>
+                            <Ionicons name="people" size={24} color={COLORS.primary} />
                             {pendingRSOs.length > 0 && (
                                 <View style={styles.badgeDot} />
                             )}
@@ -113,39 +132,109 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
                                 {pendingRSOs.length} Pending Requests
                             </Text>
                         </View>
-                        <Text style={styles.actionArrow}>→</Text>
+                        <Ionicons name="chevron-forward" size={24} color={COLORS.gray} style={{ marginLeft: 'auto' }} />
                     </TouchableOpacity>
                 </View>
 
-                {/* Overall Stats */}
+                {/* Filters */}
+                <View style={styles.filterSection}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
+                        {['all', 'zone1', 'zone4', 'zone8'].map(f => (
+                            <TouchableOpacity
+                                key={f}
+                                style={[styles.filterButton, filter === f && styles.filterButtonActive]}
+                                onPress={() => { setFilter(f); setStatusFilter('all'); }}
+                            >
+                                <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
+                                    {f === 'all' ? 'All Zones' : f.toUpperCase()}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+
+                {/* Overall Stats (Interactive) */}
                 <View style={styles.statsCard}>
-                    <Text style={styles.cardTitle}>Overall Statistics</Text>
+                    <Text style={styles.cardTitle}>
+                        {filter === 'all' ? 'Overall Statistics' : `Statistics: ${filter.toUpperCase()}`}
+                    </Text>
                     <View style={styles.statsRow}>
-                        <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{totalStats.total}</Text>
-                            <Text style={styles.statLabel}>{t('total_reports')}</Text>
-                        </View>
+                        <TouchableOpacity
+                            style={[styles.statItem, statusFilter === 'all' && styles.statItemActive]}
+                            onPress={() => setStatusFilter('all')}
+                        >
+                            <Text style={styles.statValue}>{displayedStats.total}</Text>
+                            <Text style={[styles.statLabel, statusFilter === 'all' && styles.statLabelActive]}>{t('total_reports')}</Text>
+                        </TouchableOpacity>
                         <View style={styles.divider} />
-                        <View style={styles.statItem}>
+                        <TouchableOpacity
+                            style={[styles.statItem, statusFilter === 'pending' && styles.statItemActive]}
+                            onPress={() => setStatusFilter('pending')}
+                        >
                             <Text style={[styles.statValue, { color: COLORS.warning }]}>
-                                {totalStats.pending}
+                                {displayedStats.pending}
                             </Text>
-                            <Text style={styles.statLabel}>Pending</Text>
-                        </View>
+                            <Text style={[styles.statLabel, statusFilter === 'pending' && styles.statLabelActive]}>Pending</Text>
+                        </TouchableOpacity>
                         <View style={styles.divider} />
-                        <View style={styles.statItem}>
+                        <TouchableOpacity
+                            style={[styles.statItem, statusFilter === 'completed' && styles.statItemActive]}
+                            onPress={() => setStatusFilter('completed')}
+                        >
                             <Text style={[styles.statValue, { color: COLORS.success }]}>
-                                {totalStats.completed}
+                                {displayedStats.completed}
                             </Text>
-                            <Text style={styles.statLabel}>Completed</Text>
-                        </View>
+                            <Text style={[styles.statLabel, statusFilter === 'completed' && styles.statLabelActive]}>Completed</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
 
-                {/* Zone Performance */}
+                {/* Filtered Reports List */}
                 <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>
+                        {statusFilter === 'all' ? 'All Reports' : `${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} Reports`} ({listedReports.length})
+                    </Text>
+                    {listedReports.length === 0 ? (
+                        <View style={styles.emptyState}>
+                            <Text style={styles.emptyText}>No reports found for this filter.</Text>
+                        </View>
+                    ) : (
+                        listedReports.map(report => (
+                            <View key={report.id} style={styles.reportCard}>
+                                <View style={styles.reportHeader}>
+                                    <View>
+                                        <Text style={styles.reportType}>{report.aiDetection?.damageType || 'Unknown'}</Text>
+                                        <Text style={styles.reportLocation}>{report.location.roadName || 'Unknown Location'}</Text>
+                                    </View>
+                                    <View style={[styles.severityBadge, { backgroundColor: getSeverityColor(report.aiDetection?.severity || 'low') }]}>
+                                        <Text style={styles.severityText}>{report.aiDetection?.severity || 'N/A'}</Text>
+                                    </View>
+                                </View>
+                                {/* Photo Thumbnail */}
+                                {report.photoUri && (
+                                    <View style={styles.imageContainer}>
+                                        <Image
+                                            source={{ uri: report.photoUri }}
+                                            style={styles.reportImage}
+                                            resizeMode="cover"
+                                        />
+                                    </View>
+                                )}
+                                <View style={styles.reportFooter}>
+                                    <Text style={styles.reportDate}>{formatDate(report.createdAt)}</Text>
+                                    <Text style={[styles.syncBadge, { color: report.status === 'completed' ? COLORS.success : COLORS.warning }]}>
+                                        {report.status}
+                                    </Text>
+                                </View>
+                            </View>
+                        ))
+                    )}
+                </View>
+
+                {/* Zone Performance (Only show if 'all' status or irrelevant context, but usually good to keep) */}
+                <View style={[styles.section, { opacity: statusFilter === 'all' ? 1 : 0.5 }]}>
                     <Text style={styles.sectionTitle}>{t('zone_performance')}</Text>
-                    {ZONES.map(zone => {
+                    {displayedZones.map(zone => {
                         const stats = zoneStats[zone.id] || {
                             total: 0,
                             pending: 0,
@@ -397,5 +486,121 @@ const styles = StyleSheet.create({
         fontSize: 20,
         color: COLORS.gray,
         marginLeft: 'auto',
+    },
+    filterSection: {
+        paddingHorizontal: 16,
+        marginBottom: 8,
+    },
+    filterContainer: {
+        gap: 8,
+        paddingRight: 16,
+    },
+    filterButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: COLORS.white,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    filterButtonActive: {
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
+    },
+    filterText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.gray,
+    },
+    filterTextActive: {
+        color: COLORS.white,
+    },
+    statItemActive: {
+        backgroundColor: '#f8fafc',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    statLabelActive: {
+        fontWeight: 'bold',
+        color: COLORS.primary,
+        textDecorationLine: 'underline',
+    },
+    // Report Card Styles
+    emptyState: {
+        alignItems: 'center',
+        padding: 30,
+    },
+    emptyText: {
+        color: COLORS.gray,
+        fontSize: 16,
+    },
+    reportCard: {
+        backgroundColor: COLORS.white,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        overflow: 'hidden',
+    },
+    reportHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    },
+    reportType: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: COLORS.dark,
+        textTransform: 'capitalize',
+    },
+    reportLocation: {
+        fontSize: 12,
+        color: COLORS.gray,
+        marginTop: 2,
+    },
+    severityBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        height: 22,
+    },
+    severityText: {
+        color: COLORS.white,
+        fontSize: 10,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+    },
+    imageContainer: {
+        height: 150,
+        backgroundColor: '#f1f5f9',
+        borderRadius: 8,
+        marginBottom: 12,
+        marginTop: 8,
+        overflow: 'hidden',
+    },
+    reportImage: {
+        width: '100%',
+        height: '100%',
+    },
+    reportFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.light,
+        paddingTop: 8,
+    },
+    reportDate: {
+        fontSize: 12,
+        color: COLORS.gray,
+    },
+    syncBadge: {
+        fontSize: 12,
+        fontWeight: '600',
+        textTransform: 'capitalize',
     },
 });

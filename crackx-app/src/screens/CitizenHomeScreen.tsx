@@ -8,6 +8,7 @@ import {
     Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
 import { Report } from '../types';
 import storageService from '../services/storage';
@@ -110,7 +111,7 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
                         onPress={() => onNavigate('ReportDamage')}
                     >
                         <View style={[styles.iconCircle, { backgroundColor: '#ffedd5' }]}>
-                            <Text style={styles.actionIcon}>📸</Text>
+                            <Ionicons name="camera-outline" size={28} color={COLORS.primary} />
                         </View>
                         <Text style={styles.actionTitle}>{t('report_damage')}</Text>
                         <Text style={styles.actionSubtitle}>Click photo of road issue</Text>
@@ -121,7 +122,7 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
                         onPress={() => onNavigate('MyReports')}
                     >
                         <View style={[styles.iconCircle, { backgroundColor: '#dbeafe' }]}>
-                            <Text style={styles.actionIcon}>📋</Text>
+                            <Ionicons name="list-outline" size={28} color={COLORS.primary} />
                         </View>
                         <Text style={styles.actionTitle}>{t('my_reports')}</Text>
                         <Text style={styles.actionSubtitle}>View status updates</Text>
@@ -130,10 +131,10 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
 
                 {/* Recent Reports List */}
                 <View style={styles.recentSection}>
-                    <Text style={styles.sectionTitle}>{t('recent_reports')}</Text>
+                    <Text style={styles.sectionTitle}>Recent Reports</Text>
                     {reports.length === 0 ? (
                         <View style={styles.emptyState}>
-                            <Text style={styles.emptyIcon}>📭</Text>
+                            <Ionicons name="file-tray-outline" size={48} color={COLORS.gray} style={{ opacity: 0.5, marginBottom: 16 }} />
                             <Text style={styles.emptyText}>{t('no_reports')}</Text>
                             <Text style={styles.emptySubtext}>
                                 Tap "Report Damage" to create your first report

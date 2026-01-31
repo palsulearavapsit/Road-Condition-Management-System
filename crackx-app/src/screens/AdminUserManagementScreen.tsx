@@ -74,7 +74,7 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
                 {/* Pending Approvals Section */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>⚠️ Pending Approvals</Text>
+                        <Text style={styles.sectionTitle}>Pending Approvals</Text>
                         <View style={styles.badge}>
                             <Text style={styles.badgeText}>{pendingUsers.length}</Text>
                         </View>

@@ -11,6 +11,7 @@ import {
     Platform
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
 import { Report } from '../types';
 import storageService from '../services/storage';
@@ -184,7 +185,7 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                         onPress={() => setSortBySeverity(!sortBySeverity)}
                     >
                         <Text style={styles.sortButtonText}>
-                            {sortBySeverity ? '✓ ' : ''}{t('sort_by_severity')}
+                            {t('sort_by_severity')}
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -194,12 +195,25 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                     <Text style={styles.sectionTitle}>{t('assigned_complaints')}</Text>
                     {reports.length === 0 ? (
                         <View style={styles.emptyState}>
-                            <Text style={styles.emptyIcon}>📭</Text>
+                            <Ionicons name="folder-open-outline" size={64} color={COLORS.gray} style={{ marginBottom: 16, opacity: 0.5 }} />
                             <Text style={styles.emptyText}>No complaints assigned</Text>
                         </View>
                     ) : (
                         reports.map((report) => (
                             <View key={report.id} style={styles.reportCard}>
+                                {/* Report Photo */}
+                                {report.photoUri && (
+                                    <View style={styles.imageContainer}>
+                                        <Ionicons name="image-outline" size={48} color={COLORS.gray} style={{ opacity: 0.5, position: 'absolute' }} />
+                                        <Text style={{ fontSize: 12, color: '#94a3b8', marginTop: 40, position: 'absolute' }}>Image Unavailable</Text>
+                                        <Image
+                                            source={{ uri: report.photoUri }}
+                                            style={styles.reportImage}
+                                            resizeMode="cover"
+                                        />
+                                    </View>
+                                )}
+
                                 <View style={styles.reportHeader}>
                                     <View>
                                         <Text style={styles.reportType}>
@@ -283,7 +297,7 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                             </View>
                         ) : (
                             <TouchableOpacity onPress={takeRepairPhoto} style={styles.photoPlaceholder}>
-                                <Text style={styles.photoPlaceholderIcon}>📷</Text>
+                                <Ionicons name="camera-outline" size={64} color={COLORS.gray} style={{ marginBottom: 12 }} />
                                 <Text style={styles.photoPlaceholderText}>{t('take_photo')}</Text>
                             </TouchableOpacity>
                         )}
@@ -409,6 +423,21 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         borderWidth: 1,
         borderColor: COLORS.border,
+        overflow: 'hidden',
+    },
+    imageContainer: {
+        marginHorizontal: -16,
+        marginTop: -16,
+        marginBottom: 12,
+        height: 200,
+        backgroundColor: '#f1f5f9',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    reportImage: {
+        width: '100%',
+        height: '100%',
+        position: 'absolute',
     },
     reportHeader: {
         flexDirection: 'row',

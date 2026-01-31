@@ -62,7 +62,15 @@ export default function MyReportsScreen({ onNavigate, onBack, onLogout }: MyRepo
                         <View key={report.id} style={styles.reportCard}>
                             {/* Photo */}
                             {report.photoUri && (
-                                <Image source={{ uri: report.photoUri }} style={styles.reportImage} />
+                                <View style={styles.imageContainer}>
+                                    <Text style={{ fontSize: 20, opacity: 0.3, fontWeight: 'bold' }}>IMG</Text>
+                                    <Text style={{ fontSize: 12, color: '#94a3b8' }}>Image Unavailable</Text>
+                                    <Image
+                                        source={{ uri: report.photoUri }}
+                                        style={styles.reportImage}
+                                        resizeMode="cover"
+                                    />
+                                </View>
                             )}
 
                             {/* Header */}
@@ -206,9 +214,17 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: COLORS.secondary,
     },
-    reportImage: {
+    imageContainer: {
         width: '100%',
         height: 200,
+        backgroundColor: '#f1f5f9',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    reportImage: {
+        width: '100%',
+        height: '100%',
+        position: 'absolute',
     },
     reportHeader: {
         flexDirection: 'row',

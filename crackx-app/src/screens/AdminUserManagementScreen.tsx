@@ -7,7 +7,12 @@ import {
     ScrollView,
     Alert,
     FlatList,
+    Platform,
+    Modal,
+    TextInput,
+    KeyboardAvoidingView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { COLORS, ZONES } from '../constants';
 import storageService from '../services/storage';
@@ -46,6 +51,141 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
         }
     };
 
+    // --- Modal State for Add/Edit User ---
+    const [modalVisible, setModalVisible] = useState(false);
+    const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+    const [formLoader, setFormLoader] = useState(false);
+
+    // Form Data
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [role, setRole] = useState<'citizen' | 'rso' | 'admin'>('citizen');
+    const [zone, setZone] = useState('');
+
+    const openAddUser = () => {
+        setModalMode('add');
+        setUsername('');
+        setPassword('');
+        setRole('citizen');
+        setZone('');
+        setModalVisible(true);
+    };
+
+    const openEditUser = (user: any) => {
+        setModalMode('edit');
+        setUsername(user.username);
+        setPassword(user.password || ''); // Some loaded users might not expose password easily, but for demo we assume it's there
+        setRole(user.role);
+        setZone(user.zone || '');
+        setModalVisible(true);
+    };
+
+    const handleSaveUser = async () => {
+        if (!username || !password) {
+            Alert.alert('Error', 'Username and Password are required');
+            return;
+        }
+
+        if (role === 'rso' && !zone) {
+            Alert.alert('Error', 'Zone is required for RSO');
+            return;
+        }
+
+        setFormLoader(true);
+        try {
+            if (modalMode === 'add') {
+                // Check if user exists
+                const existing = [...activeUsers, ...pendingUsers].find(u => u.username === username);
+                if (existing) {
+                    Alert.alert('Error', 'Username already exists');
+                    setFormLoader(false);
+                    return;
+                }
+
+                const newUser = {
+                    id: `${role}_${username}_${Date.now()}`,
+                    username,
+                    password,
+                    role,
+                    zone: role === 'rso' ? zone : undefined,
+                    isApproved: true, // Auto-approve admin added users
+                    points: 0
+                };
+                await storageService.saveRegisteredUser(newUser);
+                Alert.alert('Success', 'User added successfully');
+
+            } else {
+                // Edit Mode
+                if (username === 'admin') {
+                    Alert.alert('Error', 'Cannot edit the main admin account');
+                    setFormLoader(false);
+                    return;
+                }
+
+                const updates: any = { password, role };
+
+                // If switching TO RSO, update zone. 
+                // If switching FROM RSO (to Admin/Citizen), clear zone by setting it undefined.
+                if (role === 'rso') {
+                    updates.zone = zone;
+                } else {
+                    updates.zone = undefined;
+                }
+
+                // Note: We are not allowing username changes easily because it's the key in many places
+
+                await storageService.updateRegisteredUser(username, updates);
+                Alert.alert('Success', 'User updated successfully');
+            }
+
+            setModalVisible(false);
+            loadUsers();
+        } catch (error) {
+            Alert.alert('Error', 'Failed to save user');
+        } finally {
+            setFormLoader(false);
+        }
+    };
+
+    const handleDeleteUser = (usernameToDelete: string) => {
+        const userToDelete = [...activeUsers, ...pendingUsers].find(u => u.username === usernameToDelete);
+
+        if (usernameToDelete === 'admin' || (userToDelete && userToDelete.role === 'admin')) {
+            Alert.alert('Error', 'Cannot delete an admin account');
+            return;
+        }
+
+        const executeDelete = async () => {
+            try {
+                await storageService.deleteRegisteredUser(usernameToDelete);
+                loadUsers(); // Refresh list
+
+                if (Platform.OS === 'web') {
+                    window.alert(`User ${usernameToDelete} deleted.`);
+                } else {
+                    Alert.alert('Success', 'User deleted');
+                }
+            } catch (error) {
+                Alert.alert('Error', 'Failed to delete user');
+            }
+        };
+
+        if (Platform.OS === 'web') {
+            if (window.confirm(`Delete user ${usernameToDelete}?`)) {
+                executeDelete();
+            }
+        } else {
+            Alert.alert(
+                'Delete User',
+                `Are you sure you want to delete ${usernameToDelete}?`,
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Delete', style: 'destructive', onPress: executeDelete }
+                ]
+            );
+        }
+    };
+
     const handleApprove = async (username: string) => {
         try {
             await storageService.updateRegisteredUser(username, { isApproved: true });
@@ -57,33 +197,47 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
     };
 
     const handleDisapprove = async (username: string) => {
-        Alert.alert(
-            'Disapprove User',
-            `Are you sure you want to disapprove and remove ${username}?`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Disapprove',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            // 1. Remove from storage/backend
-                            await storageService.deleteRegisteredUser(username);
+        const executeDisapprove = async () => {
+            try {
+                // 1. Remove from storage/backend
+                await storageService.deleteRegisteredUser(username);
 
-                            // 2. Update UI immediately
-                            setPendingUsers(prev => prev.filter(user => user.username !== username));
+                // 2. Update UI immediately
+                setPendingUsers(prev => prev.filter(user => user.username !== username));
 
-                            Alert.alert(t('success'), `User ${username} disapproved and removed.`);
-
-                            // 3. Reload specifically to ensure sync (optional but good)
-                            // loadUsers(); 
-                        } catch (error) {
-                            Alert.alert(t('error'), 'Failed to disapprove user');
-                        }
-                    }
+                if (Platform.OS === 'web') {
+                    window.alert(`User ${username} disapproved and removed.`);
+                } else {
+                    Alert.alert(t('success'), `User ${username} disapproved and removed.`);
                 }
-            ]
-        );
+            } catch (error) {
+                console.error(error);
+                if (Platform.OS === 'web') {
+                    window.alert('Failed to disapprove user');
+                } else {
+                    Alert.alert(t('error'), 'Failed to disapprove user');
+                }
+            }
+        };
+
+        if (Platform.OS === 'web') {
+            if (window.confirm(`Are you sure you want to disapprove and remove ${username}?`)) {
+                await executeDisapprove();
+            }
+        } else {
+            Alert.alert(
+                'Disapprove User',
+                `Are you sure you want to disapprove and remove ${username}?`,
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Disapprove',
+                        style: 'destructive',
+                        onPress: executeDisapprove
+                    }
+                ]
+            );
+        }
     };
 
     const handleLogout = async () => {
@@ -152,7 +306,13 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
 
                 {/* Active Users Section */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Active Users</Text>
+                    <View style={styles.sectionHeaderActive}>
+                        <Text style={styles.sectionTitle}>Active Users</Text>
+                        <TouchableOpacity style={styles.addUserButton} onPress={openAddUser}>
+                            <Ionicons name="add" size={20} color={COLORS.white} />
+                            <Text style={styles.addUserText}>Add User</Text>
+                        </TouchableOpacity>
+                    </View>
 
                     {activeUsers.length === 0 ? (
                         <View style={styles.emptyState}>
@@ -175,8 +335,19 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
                                         </View>
                                     </View>
                                 </View>
-                                <View style={styles.statusBadge}>
-                                    <Text style={styles.statusText}>Active</Text>
+
+                                {/* Edit / Delete Actions */}
+                                <View style={styles.actionIcons}>
+                                    {user.username !== 'admin' && (
+                                        <TouchableOpacity style={styles.iconBtn} onPress={() => openEditUser(user)}>
+                                            <Ionicons name="create-outline" size={20} color={COLORS.primary} />
+                                        </TouchableOpacity>
+                                    )}
+                                    {user.role !== 'admin' && (
+                                        <TouchableOpacity style={styles.iconBtn} onPress={() => handleDeleteUser(user.username)}>
+                                            <Ionicons name="trash-outline" size={20} color={COLORS.danger} />
+                                        </TouchableOpacity>
+                                    )}
                                 </View>
                             </View>
                         ))
@@ -184,6 +355,82 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
                 </View>
 
             </ScrollView>
+
+            {/* Add/Edit User Modal */}
+            <Modal
+                transparent={true}
+                visible={modalVisible}
+                animationType="fade"
+                onRequestClose={() => setModalVisible(false)}
+            >
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>{modalMode === 'add' ? 'Add New User' : 'Edit User'}</Text>
+
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.label}>Username</Text>
+                            <TextInput
+                                style={[styles.input, modalMode === 'edit' && styles.disabledInput]}
+                                value={username}
+                                onChangeText={setUsername}
+                                placeholder="Enter username"
+                                editable={modalMode === 'add'}
+                            />
+                        </View>
+
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.label}>Password</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={password}
+                                onChangeText={setPassword}
+                                placeholder="Enter password"
+                            />
+                        </View>
+
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.label}>Role</Text>
+                            <View style={styles.roleSelector}>
+                                {['citizen', 'rso', 'admin'].map((r) => (
+                                    <TouchableOpacity
+                                        key={r}
+                                        style={[styles.roleOption, role === r && styles.roleOptionActive]}
+                                        onPress={() => setRole(r as any)}
+                                    >
+                                        <Text style={[styles.roleOptionText, role === r && styles.roleOptionTextActive]}>{t(r)}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
+
+                        {role === 'rso' && (
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.label}>Zone (Required for RSO)</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.zoneSelector}>
+                                    {ZONES.map((z) => (
+                                        <TouchableOpacity
+                                            key={z.id}
+                                            style={[styles.zoneOption, zone === z.id && styles.zoneOptionActive]}
+                                            onPress={() => setZone(z.id)}
+                                        >
+                                            <Text style={[styles.zoneOptionText, zone === z.id && styles.zoneOptionTextActive]}>{z.name.split(' - ')[0]}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        )}
+
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}>
+                                <Text style={styles.cancelBtnText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.saveBtn} onPress={handleSaveUser} disabled={formLoader}>
+                                <Text style={styles.saveBtnText}>{formLoader ? 'Saving...' : 'Save User'}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
         </DashboardLayout>
     );
 }
@@ -338,6 +585,154 @@ const styles = StyleSheet.create({
     statusText: {
         color: '#166534',
         fontSize: 10,
+        fontWeight: 'bold',
+    },
+    // New Styles
+    sectionHeaderActive: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    addUserButton: {
+        backgroundColor: COLORS.primary,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        gap: 6,
+    },
+    addUserText: {
+        color: COLORS.white,
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+    actionIcons: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    iconBtn: {
+        padding: 4,
+    },
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    modalContent: {
+        backgroundColor: COLORS.white,
+        borderRadius: 20,
+        padding: 24,
+        width: '100%',
+        maxWidth: 400,
+        elevation: 5,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: COLORS.dark,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    inputContainer: {
+        marginBottom: 16,
+    },
+    label: {
+        fontSize: 12,
+        color: COLORS.gray,
+        fontWeight: '700',
+        marginBottom: 8,
+        textTransform: 'uppercase',
+    },
+    input: {
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 10,
+        padding: 12,
+        fontSize: 14,
+        color: COLORS.dark,
+    },
+    disabledInput: {
+        backgroundColor: '#f1f5f9',
+        color: COLORS.gray,
+    },
+    roleSelector: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    roleOption: {
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        backgroundColor: COLORS.white,
+    },
+    roleOptionActive: {
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
+    },
+    roleOptionText: {
+        fontSize: 12,
+        color: COLORS.gray,
+        fontWeight: '600',
+    },
+    roleOptionTextActive: {
+        color: COLORS.white,
+    },
+    zoneSelector: {
+        flexDirection: 'row',
+    },
+    zoneOption: {
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        marginRight: 8,
+    },
+    zoneOptionActive: {
+        backgroundColor: '#eff6ff',
+        borderColor: COLORS.primary,
+    },
+    zoneOptionText: {
+        fontSize: 12,
+        color: COLORS.gray,
+    },
+    zoneOptionTextActive: {
+        color: COLORS.primary,
+        fontWeight: 'bold',
+    },
+    modalActions: {
+        flexDirection: 'row',
+        marginTop: 10,
+        gap: 12,
+    },
+    cancelBtn: {
+        flex: 1,
+        padding: 14,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        alignItems: 'center',
+    },
+    cancelBtnText: {
+        color: COLORS.gray,
+        fontWeight: 'bold',
+    },
+    saveBtn: {
+        flex: 1,
+        padding: 14,
+        borderRadius: 12,
+        backgroundColor: COLORS.primary,
+        alignItems: 'center',
+    },
+    saveBtnText: {
+        color: COLORS.white,
         fontWeight: 'bold',
     },
 });

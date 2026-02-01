@@ -9,6 +9,9 @@ import {
     Alert,
     ActivityIndicator,
     Image,
+    LayoutAnimation,
+    UIManager,
+    Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -32,7 +35,14 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'pending' | 'users'>('pending');
 
+
+
     useEffect(() => {
+        if (Platform.OS === 'android') {
+            if (UIManager.setLayoutAnimationEnabledExperimental) {
+                UIManager.setLayoutAnimationEnabledExperimental(true);
+            }
+        }
         loadData();
     }, []);
 
@@ -75,20 +85,47 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
             return;
         }
 
+        // --- Optimistic UI Update ---
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        // 1. Remove from Pending List immediately
+        setReports(prev => prev.map(r => {
+            if (r.id === reportId) {
+                return {
+                    ...r,
+                    reportApprovedForPoints: type === 'report' ? true : r.reportApprovedForPoints,
+                    repairApprovedForPoints: type === 'repair' ? true : r.repairApprovedForPoints
+                };
+            }
+            return r;
+        }));
+
+        // 2. Update User Points immediately (Force Number type safety)
+        setUsers(prev => prev.map(u => {
+            if (u.id === userId || u.username === userId) {
+                return { ...u, points: (Number(u.points) || 0) + points };
+            }
+            return u;
+        }));
+
+        // 3. Update Admin Pool immediately (Force Number type safety)
+        setAdminUser(prev => prev ? { ...prev, adminPointsPool: (Number(prev.adminPointsPool) || 0) - points } : prev);
+        // -----------------------------
+
         try {
-            // 1. Find user and update points
+            // 1. Find user and update points (Backend)
             const targetUser = users.find(u => u.id === userId || u.username === userId);
             if (!targetUser) throw new Error('User not found');
 
-            const updatedPoints = (targetUser.points || 0) + points;
+            const updatedPoints = (Number(targetUser.points) || 0) + points;
             await storageService.updateRegisteredUser(targetUser.username, { points: updatedPoints });
 
             // 2. Deduct from Admin Pool
-            const updatedPool = (adminUser.adminPointsPool || 0) - points;
+            const updatedPool = (Number(adminUser.adminPointsPool) || 0) - points;
             const updatedAdmin = { ...adminUser, adminPointsPool: updatedPool };
+
+            // Persist changes to both the User List AND the Current Session User
             await storageService.updateRegisteredUser(adminUser.username, { adminPointsPool: updatedPool });
-            await storageService.saveUser(updatedAdmin);
-            setAdminUser(updatedAdmin);
+            await storageService.saveUser(updatedAdmin); // IMPORTANT: Keeps authService.getCurrentUser() in sync
 
             // 3. Mark report as awarded
             const reportIndex = reports.findIndex(r => r.id === reportId);
@@ -99,27 +136,48 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
                 await storageService.saveReport(updatedReport);
             }
 
-            Alert.alert('Success', `Awarded ${points} points to ${targetUser.username}`);
-            loadData();
+            // Success: Rely on Optimistic Update. Do NOT reload data to prevent stale reads.
+            // loadData(); 
+
         } catch (error) {
-            Alert.alert('Error', 'Failed to award points');
+            console.error(error);
+            // Only revert on actual failure, but don't blocking alert
+            // Alert.alert('Error', 'Failed to save point transaction. Reverting...');
+            loadData(); // Revert on error
         }
     };
 
     const disapprovePoints = async (reportId: string, type: 'report' | 'repair') => {
+        // --- Optimistic UI Update ---
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
+        // Mark locally as processed immediately
+        setReports(prev => prev.map(r => {
+            if (r.id === reportId) {
+                // If we return a new object with ApprovedForPoints=true, it gets filtered out of 'pendingPoints'
+                return {
+                    ...r,
+                    reportApprovedForPoints: type === 'report' ? true : r.reportApprovedForPoints,
+                    repairApprovedForPoints: type === 'repair' ? true : r.repairApprovedForPoints
+                };
+            }
+            return r;
+        }));
+        // -----------------------------
+
         try {
             const reportIndex = reports.findIndex(r => r.id === reportId);
             if (reportIndex >= 0) {
                 const updatedReport = { ...reports[reportIndex] };
-                if (type === 'report') updatedReport.reportApprovedForPoints = true; // Mark as processed
-                if (type === 'repair') updatedReport.repairApprovedForPoints = true; // Mark as processed
+                if (type === 'report') updatedReport.reportApprovedForPoints = true;
+                if (type === 'repair') updatedReport.repairApprovedForPoints = true;
                 await storageService.saveReport(updatedReport);
             }
-
-            Alert.alert('Disapproved', 'Point request has been disapproved');
-            loadData();
+            // Success: Rely on Optimistic Update.
         } catch (error) {
-            Alert.alert('Error', 'Failed to disapprove request');
+            console.error('Disapprove failed', error);
+            // Revert state if backend save fails
+            loadData();
         }
     };
 
@@ -127,6 +185,8 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
         (r.status === 'pending' && !r.reportApprovedForPoints) ||
         (r.status === 'completed' && !r.repairApprovedForPoints)
     );
+
+
 
     return (
         <DashboardLayout
@@ -246,10 +306,10 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
                                                 <>
                                                     <TouchableOpacity
                                                         style={styles.awardButton}
-                                                        onPress={() => awardPoints(report.id, report.citizenId, 15, 'report')}
+                                                        onPress={() => awardPoints(report.id, report.citizenId, 10, 'report')}
                                                     >
                                                         <Ionicons name="checkmark-circle" size={18} color={COLORS.white} style={{ marginRight: 6 }} />
-                                                        <Text style={styles.awardButtonText}>Approve & Give 15 Pts</Text>
+                                                        <Text style={styles.awardButtonText}>Approve & Award 10 Pts</Text>
                                                     </TouchableOpacity>
                                                     <TouchableOpacity
                                                         style={[styles.awardButton, styles.disapproveButton]}
@@ -278,11 +338,12 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
                                                                 return;
                                                             }
 
-                                                            awardPoints(report.id, targetId, 20, 'repair');
+                                                            // RSO gets 0 points as per new rule, just verification
+                                                            awardPoints(report.id, targetId, 0, 'repair');
                                                         }}
                                                     >
                                                         <Ionicons name="checkmark-circle" size={18} color={COLORS.white} style={{ marginRight: 6 }} />
-                                                        <Text style={styles.awardButtonText}>Verify & Give 20 Pts</Text>
+                                                        <Text style={styles.awardButtonText}>Verify Repair</Text>
                                                     </TouchableOpacity>
                                                     <TouchableOpacity
                                                         style={[styles.awardButton, styles.disapproveButton]}
@@ -310,8 +371,15 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
                                         </View>
                                     </View>
                                     <View style={styles.userWallet}>
-                                        <Ionicons name="star" size={16} color="#f59e0b" />
-                                        <Text style={styles.userPoints}>{u.points || 0}</Text>
+                                        {u.role === 'citizen' && (
+                                            <>
+                                                <Ionicons name="star" size={16} color="#f59e0b" />
+                                                <Text style={styles.userPoints}>{u.points || 0}</Text>
+                                            </>
+                                        )}
+                                        {u.role === 'rso' && (
+                                            <Text style={[styles.userPoints, { color: COLORS.gray, fontSize: 12 }]}>-</Text>
+                                        )}
                                     </View>
                                 </View>
                             ))
@@ -319,6 +387,8 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
                     </ScrollView>
                 )}
             </View>
+
+
         </DashboardLayout>
     );
 }
@@ -592,5 +662,103 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '600',
         marginLeft: 4,
+    },
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    modalContent: {
+        backgroundColor: COLORS.white,
+        borderRadius: 24,
+        padding: 24,
+        width: '100%',
+        maxWidth: 360,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    modalHeader: {
+        alignItems: 'center',
+        marginBottom: 24,
+    },
+    modalIconBg: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: '#fffbeb',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+        borderWidth: 4,
+        borderColor: '#fef3c7',
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: COLORS.dark,
+        marginBottom: 8,
+    },
+    modalSubtitle: {
+        fontSize: 14,
+        color: COLORS.gray,
+        textAlign: 'center',
+        lineHeight: 20,
+    },
+    inputContainer: {
+        marginBottom: 24,
+    },
+    inputLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: COLORS.gray,
+        marginBottom: 8,
+        textTransform: 'uppercase',
+    },
+    pointsInput: {
+        borderWidth: 2,
+        borderColor: COLORS.border,
+        borderRadius: 12,
+        padding: 16,
+        fontSize: 24,
+        backgroundColor: '#f8fafc',
+        color: COLORS.dark,
+        textAlign: 'center',
+        fontWeight: 'bold',
+    },
+    modalActions: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    modalButton: {
+        flex: 1,
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+    },
+    cancelButton: {
+        backgroundColor: COLORS.white,
+        borderColor: COLORS.border,
+    },
+    confirmButton: {
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
+    },
+    cancelButtonText: {
+        color: COLORS.gray,
+        fontWeight: '600',
+        fontSize: 16,
+    },
+    confirmButtonText: {
+        color: COLORS.white,
+        fontWeight: 'bold',
+        fontSize: 16,
     },
 });

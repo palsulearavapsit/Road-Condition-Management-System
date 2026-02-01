@@ -14,7 +14,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { COLORS } from '../constants';
+import { COLORS, ZONES } from '../constants';
 import { ReportingMode, Report, Location as LocationType } from '../types';
 import locationService from '../services/location';
 import aiService from '../services/ai';
@@ -153,14 +153,27 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                 return;
             }
 
+            // Ensure we have a valid zone. If missing, try auto-detect.
+            let finalZone = location?.zone;
+            if (!finalZone && (location?.latitude || manualAddress)) {
+                // Try to detect zone based on coordinates if they exist
+                if (location?.latitude && location?.longitude) {
+                    finalZone = locationService.detectZone(location.latitude, location.longitude);
+                } else {
+                    // Fallback to zone1 if completely manual without coords
+                    finalZone = 'zone1';
+                }
+            }
+
             const finalLocation: LocationType = location ? {
                 ...location,
                 address: manualAddress || location.address || location.roadName || '',
+                zone: finalZone || 'zone1'
             } : {
                 latitude: 0,
                 longitude: 0,
                 address: manualAddress,
-                zone: 'zone1', // Default for manual entry
+                zone: finalZone || 'zone1',
             };
 
             const report: Report = {
@@ -304,6 +317,37 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                                             </View>
                                         )}
 
+                                        <View style={{ marginBottom: 16 }}>
+                                            <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.dark, marginBottom: 8 }}>
+                                                Detected Zone (Tap to Change):
+                                            </Text>
+                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
+                                                {ZONES.map((z) => (
+                                                    <TouchableOpacity
+                                                        key={z.id}
+                                                        style={{
+                                                            paddingVertical: 6,
+                                                            paddingHorizontal: 12,
+                                                            borderRadius: 20,
+                                                            backgroundColor: location.zone === z.id ? COLORS.primary : COLORS.secondary,
+                                                            marginRight: 8,
+                                                            borderWidth: 1,
+                                                            borderColor: location.zone === z.id ? COLORS.primary : COLORS.border,
+                                                        }}
+                                                        onPress={() => setLocation({ ...location, zone: z.id })}
+                                                    >
+                                                        <Text style={{
+                                                            fontSize: 12,
+                                                            fontWeight: '600',
+                                                            color: location.zone === z.id ? COLORS.white : COLORS.gray
+                                                        }}>
+                                                            {z.name.split(' - ')[0]}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </ScrollView>
+                                        </View>
+
                                         {/* Map Component */}
                                         <View style={{ height: 300, marginBottom: 16 }}>
                                             <MapComponent
@@ -343,6 +387,55 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                                     onChangeText={setManualAddress}
                                     multiline
                                 />
+
+                                <View style={{ marginBottom: 20 }}>
+                                    <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.dark, marginBottom: 8 }}>
+                                        Select Zone:
+                                    </Text>
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
+                                        {ZONES.map((z) => {
+                                            const isSelected = location?.zone === z.id || (!location && z.id === 'zone1'); // Default zone1 if no location
+                                            return (
+                                                <TouchableOpacity
+                                                    key={z.id}
+                                                    style={{
+                                                        paddingVertical: 6,
+                                                        paddingHorizontal: 12,
+                                                        borderRadius: 20,
+                                                        backgroundColor: isSelected ? COLORS.primary : COLORS.secondary,
+                                                        marginRight: 8,
+                                                        borderWidth: 1,
+                                                        borderColor: isSelected ? COLORS.primary : COLORS.border,
+                                                    }}
+                                                    onPress={() => {
+                                                        if (location) {
+                                                            setLocation({ ...location, zone: z.id });
+                                                        } else {
+                                                            // Initialize dummy location for manual entry so we can store the zone
+                                                            setLocation({
+                                                                latitude: 0,
+                                                                longitude: 0,
+                                                                address: manualAddress,
+                                                                zone: z.id,
+                                                                roadName: '',
+                                                                area: ''
+                                                            });
+                                                        }
+                                                    }}
+                                                >
+                                                    <Text style={{
+                                                        fontSize: 12,
+                                                        fontWeight: '600',
+                                                        color: isSelected ? COLORS.white : COLORS.gray
+                                                    }}>
+                                                        {z.name.split(' - ')[0]}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </ScrollView>
+                                </View>
+
                                 <TouchableOpacity style={styles.button} onPress={handleLocationConfirm}>
                                     <Text style={styles.buttonText}>{t('continue')}</Text>
                                 </TouchableOpacity>

@@ -1,33 +1,34 @@
 {
-  "id": "1769852989182_q3kq60dz3",
+  "aiDetection": {
+    "boundingBox": {
+      "height": 0.44252567033919066,
+      "width": 0.5275919473846993,
+      "x": 0.2943208406885893,
+      "y": 0.03764645801423306
+    },
+    "confidence": 0.82,
+    "damageType": "other",
+    "severity": "high"
+  },
   "citizenId": "user_1769806643170",
-  "reportingMode": "on-site",
+  "createdAt": "2026-01-31T09:49:49.182Z",
+  "id": "1769852989182_q3kq60dz3",
   "location": {
+    "address": "Dongaripada, Thane, Maharashtra",
+    "area": "Dongaripada",
     "latitude": 19.25754534661947,
     "longitude": 72.97495487804245,
-    "address": "Dongaripada, Thane, Maharashtra",
     "roadName": "",
-    "area": "Dongaripada",
     "zone": "zone8"
   },
   "photoUri": "blob:http://localhost:8081/24e485a4-9e52-4283-ae23-3455eac43e45",
-  "aiDetection": {
-    "damageType": "other",
-    "confidence": 0.82,
-    "severity": "high",
-    "boundingBox": {
-      "x": 0.2943208406885893,
-      "y": 0.03764645801423306,
-      "width": 0.5275919473846993,
-      "height": 0.44252567033919066
-    }
-  },
-  "status": "completed",
-  "syncStatus": "synced",
-  "createdAt": "2026-01-31T09:49:49.182Z",
-  "updatedAt": "2026-01-31T09:49:49.184Z",
   "repairCompletedAt": "2026-01-31T09:52:25.814Z",
   "repairProofUri": "blob:http://localhost:8081/3ce4127e-040d-4fbc-8886-82b8d931a867",
-  "syncedAt": "2026-01-31T16:45:39.189362",
-  "serverStatus": "synced"
+  "reportingMode": "on-site",
+  "serverStatus": "synced",
+  "status": "completed",
+  "syncStatus": "synced",
+  "syncedAt": "2026-02-01T22:22:53.615551",
+  "updatedAt": "2026-01-31T09:49:49.184Z",
+  "repairApprovedForPoints": true
 }

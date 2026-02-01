@@ -18,6 +18,7 @@ interface MapComponentProps {
     longitude: number;
     onLocationSelect?: (lat: number, lng: number) => void;
     interactive?: boolean;
+    markers?: { id: string; latitude: number; longitude: number; color: string }[];
 }
 
 export const MapComponent: React.FC<MapComponentProps> = ({
@@ -25,6 +26,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
     longitude,
     onLocationSelect,
     interactive = true,
+    markers,
 }) => {
     useEffect(() => {
         if (Mapbox) {
@@ -68,21 +70,36 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                 }}
             >
                 <Mapbox.Camera
-                    zoomLevel={15}
+                    zoomLevel={12} // Zoomed out slightly to see more heatmap points
                     centerCoordinate={[longitude, latitude]}
                     animationMode={'flyTo'}
                     animationDuration={2000}
                 />
 
-                {/* User Marker */}
-                <Mapbox.PointAnnotation
-                    id="userLocation"
-                    coordinate={[longitude, latitude]}
-                >
-                    <View style={styles.markerContainer}>
-                        <View style={styles.markerDot} />
-                    </View>
-                </Mapbox.PointAnnotation>
+                {markers ? (
+                    // Render Multiple Markers (Heatmap Simulation)
+                    markers.map(marker => (
+                        <Mapbox.PointAnnotation
+                            key={marker.id}
+                            id={marker.id}
+                            coordinate={[marker.longitude, marker.latitude]}
+                        >
+                            <View style={[styles.markerContainer, { opacity: 0.8 }]}>
+                                <View style={[styles.markerDot, { backgroundColor: marker.color, width: 24, height: 24, borderRadius: 12, borderWidth: 2 }]} />
+                            </View>
+                        </Mapbox.PointAnnotation>
+                    ))
+                ) : (
+                    // Default Single User Marker (only if markers prop is not provided)
+                    <Mapbox.PointAnnotation
+                        id="userLocation"
+                        coordinate={[longitude, latitude]}
+                    >
+                        <View style={styles.markerContainer}>
+                            <View style={styles.markerDot} />
+                        </View>
+                    </Mapbox.PointAnnotation>
+                )}
             </Mapbox.MapView>
         </View>
     );

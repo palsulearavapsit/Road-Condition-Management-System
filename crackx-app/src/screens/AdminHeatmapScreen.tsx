@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    Alert
+    Alert,
+    ActivityIndicator
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+// import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
 import { Report } from '../types';
@@ -25,19 +27,42 @@ export default function AdminHeatmapScreen({ onNavigate, onLogout }: AdminHeatma
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
+    React.useEffect(() => {
         loadData();
     }, []);
 
     const loadData = async () => {
-        const allReports = await storageService.getReports();
-        setReports(allReports);
-        setLoading(false);
+        setLoading(true);
+        try {
+            const allReports = await storageService.getReports();
+            setReports(allReports);
+        } catch (error) {
+            console.error('Failed to load heatmap data:', error);
+            Alert.alert('Error', 'Failed to load heatmap data');
+        } finally {
+            setLoading(false);
+        }
     };
 
     // Filter reports by severity for Heatmap visualization
     const highSeverityReports = reports.filter(r => r.aiDetection?.severity === 'high');
     const mediumSeverityReports = reports.filter(r => r.aiDetection?.severity === 'medium');
+
+    // Prepare Markers for Heatmap
+    const mapMarkers = [
+        ...highSeverityReports.map(r => ({
+            id: r.id,
+            latitude: r.location?.latitude || 0,
+            longitude: r.location?.longitude || 0,
+            color: COLORS.danger
+        })),
+        ...mediumSeverityReports.map(r => ({
+            id: r.id,
+            latitude: r.location?.latitude || 0,
+            longitude: r.location?.longitude || 0,
+            color: COLORS.warning
+        }))
+    ];
 
     return (
         <DashboardLayout
@@ -47,58 +72,65 @@ export default function AdminHeatmapScreen({ onNavigate, onLogout }: AdminHeatma
             onNavigate={onNavigate}
             onLogout={onLogout}
         >
-            <View style={styles.container}>
-                <View style={styles.mapHeader}>
-                    <Text style={styles.mapTitle}>Vulnerability Map</Text>
-                    <Text style={styles.mapSubtitle}>High concentration areas of road damage</Text>
+            {loading ? (
+                <View style={[styles.container, styles.centerContent]}>
+                    <ActivityIndicator size="large" color={COLORS.primary} />
                 </View>
-
-                {/* Heatmap Legend */}
-                <View style={styles.legend}>
-                    <View style={styles.legendItem}>
-                        <View style={[styles.dot, { backgroundColor: COLORS.danger }]} />
-                        <Text style={styles.legendText}>High Severity (Critical)</Text>
+            ) : (
+                <View style={styles.container}>
+                    <View style={styles.mapHeader}>
+                        <Text style={styles.mapTitle}>Vulnerability Map</Text>
+                        <Text style={styles.mapSubtitle}>High concentration areas of road damage</Text>
                     </View>
-                    <View style={styles.legendItem}>
-                        <View style={[styles.dot, { backgroundColor: COLORS.warning }]} />
-                        <Text style={styles.legendText}>Medium Severity</Text>
+
+                    {/* Heatmap Legend */}
+                    <View style={styles.legend}>
+                        <View style={styles.legendItem}>
+                            <View style={[styles.dot, { backgroundColor: COLORS.danger }]} />
+                            <Text style={styles.legendText}>High Severity (Critical)</Text>
+                        </View>
+                        <View style={styles.legendItem}>
+                            <View style={[styles.dot, { backgroundColor: COLORS.warning }]} />
+                            <Text style={styles.legendText}>Medium Severity</Text>
+                        </View>
                     </View>
-                </View>
 
-                <View style={styles.mapContainer}>
-                    {/* Simulation of Heatmap: centering on the first high severity report or Solapur center */}
-                    <MapComponent
-                        latitude={highSeverityReports.length > 0 ? highSeverityReports[0].location.latitude : 17.6599}
-                        longitude={highSeverityReports.length > 0 ? highSeverityReports[0].location.longitude : 75.9064}
-                        interactive={false}
-                    />
-                </View>
+                    <View style={styles.mapContainer}>
+                        {/* Heatmap Visualization: Rendering all critical points */}
+                        <MapComponent
+                            latitude={mapMarkers.length > 0 ? mapMarkers[0].latitude : 17.6599}
+                            longitude={mapMarkers.length > 0 ? mapMarkers[0].longitude : 75.9064}
+                            interactive={false}
+                            markers={mapMarkers}
+                        />
+                    </View>
 
-                <ScrollView style={styles.hotspotsList}>
-                    <Text style={styles.sectionTitle}>Critical Hotspots</Text>
-                    {highSeverityReports.length === 0 ? (
-                        <Text style={styles.emptyText}>No critical hotspots detected.</Text>
-                    ) : (
-                        highSeverityReports.map(report => (
-                            <View key={report.id} style={styles.hotspotCard}>
-                                <View style={styles.hotspotIcon}>
-                                    <Ionicons name="warning" size={24} color={COLORS.danger} />
+                    <ScrollView style={styles.hotspotsList}>
+                        <Text style={styles.sectionTitle}>Critical Hotspots</Text>
+                        {highSeverityReports.length === 0 ? (
+                            <Text style={styles.emptyText}>No critical hotspots detected.</Text>
+                        ) : (
+                            highSeverityReports.map(report => (
+                                <View key={report.id} style={styles.hotspotCard}>
+                                    <View style={styles.hotspotIcon}>
+                                        <Ionicons name="warning" size={24} color={COLORS.danger} />
+                                    </View>
+                                    <View style={styles.hotspotInfo}>
+                                        <Text style={styles.hotspotRoad}>{report.location?.roadName || 'Unknown Road'}</Text>
+                                        <Text style={styles.hotspotZone}>{report.location?.zone?.toUpperCase()}</Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        style={styles.inspectButton}
+                                        onPress={() => Alert.alert('Hotspot Selected', `Location: ${report.location?.latitude || 'N/A'}, ${report.location?.longitude || 'N/A'}`)}
+                                    >
+                                        <Ionicons name="eye-outline" size={20} color={COLORS.primary} />
+                                    </TouchableOpacity>
                                 </View>
-                                <View style={styles.hotspotInfo}>
-                                    <Text style={styles.hotspotRoad}>{report.location.roadName || 'Unknown Road'}</Text>
-                                    <Text style={styles.hotspotZone}>{report.location.zone?.toUpperCase()}</Text>
-                                </View>
-                                <TouchableOpacity
-                                    style={styles.inspectButton}
-                                    onPress={() => Alert.alert('Hotspot Selected', `Location: ${report.location.latitude}, ${report.location.longitude}`)}
-                                >
-                                    <Ionicons name="eye-outline" size={20} color={COLORS.primary} />
-                                </TouchableOpacity>
-                            </View>
-                        ))
-                    )}
-                </ScrollView>
-            </View>
+                            ))
+                        )}
+                    </ScrollView>
+                </View>
+            )}
         </DashboardLayout>
     );
 }
@@ -107,6 +139,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         padding: 16,
+    },
+    centerContent: {
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     mapHeader: {
         marginBottom: 16,

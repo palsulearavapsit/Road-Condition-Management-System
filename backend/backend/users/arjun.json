@@ -4,6 +4,6 @@
   "password": "arjun",
   "role": "rso",
   "zone": "zone1",
-  "isApproved": false,
+  "isApproved": true,
   "registeredAt": "2026-01-31T23:24:33.329522"
 }

@@ -36,7 +36,9 @@ class StorageService {
     }
 
     async getRegisteredUsers(): Promise<any[]> {
-        // Try fetching from backend first
+        // DISABLE API OVERWRITE: Prioritize local storage to allow deletions/edits to persist.
+        // The API sync should be additive or background only, not a hard overwrite.
+        /*
         try {
             const onlineUsers = await apiService.fetchUsers();
             if (onlineUsers && onlineUsers.length > 0) {
@@ -46,22 +48,25 @@ class StorageService {
         } catch (e) {
             console.log('Offline: Loading local users');
         }
+        */
 
         const usersStr = await AsyncStorage.getItem(STORAGE_KEYS.REGISTERED_USERS);
         let users = usersStr ? JSON.parse(usersStr) : [];
 
-        // SEEDING: Ensure hardcoded demo users are always present in the database list
-        let hasChanges = false;
-        Object.values(HARDCODED_DEMO_USERS).forEach(demoUser => {
-            if (!users.find((u: any) => u.username === demoUser.username)) {
-                users.push(demoUser);
-                hasChanges = true;
-            }
-        });
+        // CHECK INITIALIZATION: Only seed demo users ONCE.
+        const isInitialized = await AsyncStorage.getItem(STORAGE_KEYS.INITIALIZED);
 
-        // Save back if we added any missing demo users (this fixes the empty list issue on fresh APKs)
-        if (hasChanges) {
+        if (!isInitialized) {
+            console.log('First Run: Seeding Demo Users');
+            // Seed hardcoded users only on first run
+            Object.values(HARDCODED_DEMO_USERS).forEach(demoUser => {
+                if (!users.find((u: any) => u.username === demoUser.username)) {
+                    users.push(demoUser);
+                }
+            });
+
             await AsyncStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(users));
+            await AsyncStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
         }
 
         return users;
@@ -126,7 +131,10 @@ class StorageService {
     }
 
     async getReports(): Promise<Report[]> {
-        // Try fetching online first
+        // PREVENT AUTO-REFILL: Prioritize local storage. 
+        // Only fetch from API if explicitly requested or via background sync.
+        // The previous logic blindly overwrote local approvals with stale backend data.
+        /*
         try {
             const onlineReports = await apiService.fetchReports();
             if (onlineReports && onlineReports.length > 0) {
@@ -136,6 +144,7 @@ class StorageService {
         } catch (e) {
             console.log('Offline mode: Loading local reports');
         }
+        */
 
         const reportsStr = await AsyncStorage.getItem(STORAGE_KEYS.REPORTS);
         return reportsStr ? JSON.parse(reportsStr) : [];

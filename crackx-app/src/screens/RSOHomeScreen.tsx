@@ -207,10 +207,7 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
             onLogout={handleLogout}
         >
             <View style={styles.walletBar}>
-                <View style={styles.pointsBadge}>
-                    <Ionicons name="star" size={16} color="#f59e0b" />
-                    <Text style={styles.pointsText}>{user?.points || 0} Points</Text>
-                </View>
+
                 <Text style={styles.welcomeText}>RSO: {user?.username}</Text>
             </View>
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>

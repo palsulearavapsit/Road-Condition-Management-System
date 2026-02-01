@@ -9,9 +9,9 @@ export const DEMO_CREDENTIALS = {
 // Hardcoded Permanent Demo Users (Master Fallbacks)
 export const HARDCODED_DEMO_USERS: Record<string, any> = {
     'admin': { id: 'admin_master', username: 'admin', password: 'admin123', role: 'admin', adminPointsPool: 100000 },
-    'rugved': { id: 'rso_rugved', username: 'rugved', password: 'rugved', role: 'rso', zone: 'zone1', isApproved: true },
-    'deep': { id: 'rso_deep', username: 'deep', password: 'deep', role: 'rso', zone: 'zone4', isApproved: true },
-    'atharva': { id: 'rso_atharva', username: 'atharva', password: 'atharva', role: 'rso', zone: 'zone8', isApproved: true },
+    'rugved': { id: 'rso_rugved', username: 'rugved', password: 'rugved', role: 'rso', zone: 'zone1', isApproved: true, points: 0 },
+    'deep': { id: 'rso_deep', username: 'deep', password: 'deep', role: 'rso', zone: 'zone4', isApproved: true, points: 0 },
+    'atharva': { id: 'rso_atharva', username: 'atharva', password: 'atharva', role: 'rso', zone: 'zone8', isApproved: true, points: 0 },
     'arav': { id: 'cit_arav', username: 'arav', password: 'arav', role: 'citizen', isApproved: true },
     'abbas': { id: 'cit_abbas', username: 'abbas', password: 'abbas', role: 'citizen', isApproved: true },
 };
@@ -66,6 +66,7 @@ export const STORAGE_KEYS = {
     LANGUAGE: '@crackx_language',
     SYNC_QUEUE: '@crackx_sync_queue',
     REGISTERED_USERS: '@crackx_registered_users',
+    INITIALIZED: '@crackx_initialized',
 };
 
 // Modern Municipal Theme (Orange & White)

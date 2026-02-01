@@ -1,44 +1,17 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import mapboxgl from 'mapbox-gl';
+import { MAPBOX_CONFIG } from '../config/mapbox';
 
-// Fix for Leaflet icons in Webpack/Metro
-const customIcon = new L.Icon({
-    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-});
+// Set Access Token
+mapboxgl.accessToken = MAPBOX_CONFIG.accessToken;
 
 interface MapComponentProps {
     latitude: number;
     longitude: number;
     onLocationSelect?: (lat: number, lng: number) => void;
     interactive?: boolean;
-}
-
-// Component to handle map clicks
-function LocationMarker({ onSelect }: { onSelect?: (lat: number, lng: number) => void }) {
-    useMapEvents({
-        click(e) {
-            if (onSelect) {
-                onSelect(e.latlng.lat, e.latlng.lng);
-            }
-        },
-    });
-    return null;
-}
-
-// Component to re-center map when props change
-function ChangeView({ center }: { center: [number, number] }) {
-    const map = useMap();
-    map.setView(center, map.getZoom());
-    return null;
+    markers?: { id: string; latitude: number; longitude: number; color: string }[];
 }
 
 export const MapComponent: React.FC<MapComponentProps> = ({
@@ -46,40 +19,131 @@ export const MapComponent: React.FC<MapComponentProps> = ({
     longitude,
     onLocationSelect,
     interactive = true,
+    markers,
 }) => {
+    const mapContainer = useRef<HTMLDivElement>(null);
+    const map = useRef<any | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
+
+    // 1. Inject CSS and Set Mounting State
+    useEffect(() => {
+        setIsMounted(true);
+        const linkId = 'mapbox-gl-css';
+        if (!document.getElementById(linkId)) {
+            const link = document.createElement('link');
+            link.id = linkId;
+            link.rel = 'stylesheet';
+            link.href = 'https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css';
+            document.head.appendChild(link);
+        }
+    }, []);
+
+    // 2. Initialize Map
+    useEffect(() => {
+        if (!isMounted || !mapContainer.current) return;
+        if (map.current) return; // Initialize only once
+
+        map.current = new mapboxgl.Map({
+            container: mapContainer.current,
+            style: MAPBOX_CONFIG.styleUrl,
+            center: [longitude, latitude],
+            zoom: 12, // Default zoom
+            interactive: interactive,
+            attributionControl: false
+        });
+
+        // Add Navigation Controls
+        if (interactive) {
+            map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+        }
+
+        // Cleanup
+        return () => {
+            map.current?.remove();
+            map.current = null;
+        };
+    }, [isMounted]); // Run once when mounted
+
+    // 3. Handle Updates (Center & Markers)
+    useEffect(() => {
+        if (!map.current) return;
+
+        // Fly to new center if changed
+        try {
+            map.current.flyTo({
+                center: [longitude, latitude],
+                essential: true,
+                zoom: 13
+            });
+        } catch (e) {
+            console.log('Mapbox fly error (ignore during init):', e);
+        }
+
+        // Clear existing markers (basic clean way for React update cycle)
+        const markersOnMap = document.getElementsByClassName('mapboxgl-marker');
+        // Convert HTMLCollection to array to iterate safely
+        Array.from(markersOnMap).forEach(marker => marker.remove());
+
+        // Add Markers
+        if (markers && markers.length > 0) {
+            markers.forEach(m => {
+                const el = document.createElement('div');
+                el.className = 'marker';
+                el.style.backgroundColor = m.color;
+                el.style.width = '20px';
+                el.style.height = '20px';
+                el.style.borderRadius = '50%';
+                el.style.border = '2px solid white';
+                el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+
+                new mapboxgl.Marker(el)
+                    .setLngLat([m.longitude, m.latitude])
+                    .addTo(map.current!);
+            });
+        } else {
+            // Default User Marker
+            const el = document.createElement('div');
+            el.className = 'marker';
+            el.style.backgroundColor = '#f97316'; // COLORS.primary
+            el.style.width = '24px';
+            el.style.height = '24px';
+            el.style.borderRadius = '50%';
+            el.style.border = '3px solid white';
+            el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+
+            new mapboxgl.Marker(el)
+                .setLngLat([longitude, latitude])
+                .addTo(map.current!);
+        }
+
+    }, [latitude, longitude, markers]);
+
+    // 4. Handle Click for Location Selection
+    useEffect(() => {
+        if (!map.current || !interactive || !onLocationSelect) return;
+
+        const handleClick = (e: any) => {
+            onLocationSelect(e.lngLat.lat, e.lngLat.lng);
+        };
+
+        map.current.on('click', handleClick);
+
+        return () => {
+            // map.current?.off('click', handleClick); // Cleanup handled by map removal usually
+        };
+    }, [interactive, onLocationSelect]);
+
+
+    if (!isMounted) return <View style={styles.loading}><Text>Loading Mapbox...</Text></View>;
+
     return (
         <View style={styles.container}>
-            {/* Inject container styles for Leaflet */}
-            <style type="text/css">{`
-                .leaflet-container {
-                    width: 100%;
-                    height: 100%;
-                    z-index: 1; /* Low z-index to not overlap dropdowns */
-                }
-            `}</style>
+            {/* Map Container for DOM */}
+            <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
-            <MapContainer
-                center={[latitude, longitude]}
-                zoom={15}
-                scrollWheelZoom={interactive}
-                style={{ width: '100%', height: '100%' }}
-                dragging={interactive}
-            >
-                <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                />
-
-                <Marker position={[latitude, longitude]} icon={customIcon} />
-
-                {interactive && <LocationMarker onSelect={onLocationSelect} />}
-                <ChangeView center={[latitude, longitude]} />
-            </MapContainer>
-
-            {/* Overlay hint for web users */}
             {interactive && (
                 <View style={styles.webHint}>
-                    <Text style={styles.webHintText}>Click on map to move marker</Text>
+                    <Text style={styles.webHintText}>Mapbox Active</Text>
                 </View>
             )}
         </View>
@@ -96,21 +160,28 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         borderWidth: 1,
         borderColor: '#e2e8f0',
-        zIndex: 1, // Ensure map acts as base layer
         position: 'relative'
+    },
+    loading: {
+        height: 300,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#f1f5f9',
+        borderRadius: 12,
     },
     webHint: {
         position: 'absolute',
         bottom: 10,
         right: 10,
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
         padding: 4,
         paddingHorizontal: 8,
         borderRadius: 4,
-        zIndex: 1000, // Above map tiles
+        zIndex: 10,
     },
     webHintText: {
         fontSize: 10,
-        color: '#64748b'
+        color: '#64748b',
+        fontWeight: 'bold'
     }
 });

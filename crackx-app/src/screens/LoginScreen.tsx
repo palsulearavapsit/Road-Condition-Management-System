@@ -108,7 +108,7 @@ export default function LoginScreen({ onLoginSuccess, onSignupClick }: LoginScre
                             style={styles.input}
                             value={username}
                             onChangeText={setUsername}
-                            placeholder="demo"
+                            placeholder="Enter username"
                             autoCapitalize="none"
                             autoCorrect={false}
                         />
@@ -120,7 +120,7 @@ export default function LoginScreen({ onLoginSuccess, onSignupClick }: LoginScre
                             style={styles.input}
                             value={password}
                             onChangeText={setPassword}
-                            placeholder="demo1234"
+                            placeholder="Enter password"
                             secureTextEntry
                             autoCapitalize="none"
                         />
@@ -188,7 +188,7 @@ export default function LoginScreen({ onLoginSuccess, onSignupClick }: LoginScre
                     {/* Demo Credentials Info */}
                     <View style={styles.infoBox}>
                         <Text style={styles.infoText}>
-                            Demo Credentials:{'\n'}
+                            Available Logins:{'\n'}
                             Admin: admin / admin123{'\n'}
                             Demo (Any): demo / demo1234{'\n'}
                             RSO (Z1): rugved / rugved{'\n'}

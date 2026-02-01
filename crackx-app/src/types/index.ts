@@ -63,6 +63,8 @@ export interface Report {
   reportApprovedForPoints?: boolean;
   repairApprovedForPoints?: boolean;
   rsoId?: string;
+  citizenRating?: number;
+  citizenFeedback?: string;
 }
 
 // Zone Types

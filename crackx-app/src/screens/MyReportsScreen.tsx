@@ -49,6 +49,18 @@ export default function MyReportsScreen({ onNavigate, onBack, onLogout }: MyRepo
         }
     };
 
+    const handleRateReport = async (report: Report, rating: number) => {
+        try {
+            const updatedReport = { ...report, citizenRating: rating };
+            await storageService.saveReport(updatedReport);
+
+            // Update local state
+            setReports(prev => prev.map(r => r.id === report.id ? updatedReport : r));
+        } catch (error) {
+            console.error('Failed to save rating:', error);
+        }
+    };
+
     return (
         <DashboardLayout
             title={t('my_reports')}
@@ -90,8 +102,6 @@ export default function MyReportsScreen({ onNavigate, onBack, onLogout }: MyRepo
                             {/* Photo */}
                             {report.photoUri && (
                                 <View style={styles.imageContainer}>
-                                    <Text style={{ fontSize: 20, opacity: 0.3, fontWeight: 'bold' }}>IMG</Text>
-                                    <Text style={{ fontSize: 12, color: '#94a3b8' }}>Image Unavailable</Text>
                                     <Image
                                         source={{ uri: report.photoUri }}
                                         style={styles.reportImage}
@@ -182,6 +192,32 @@ export default function MyReportsScreen({ onNavigate, onBack, onLogout }: MyRepo
                                         </Text>
                                     </View>
                                     <Image source={{ uri: report.repairProofUri }} style={styles.repairImage} />
+
+                                    {/* Citizen Feedback Section */}
+                                    <View style={styles.feedbackSection}>
+                                        <Text style={styles.feedbackTitle}>Your Feedback:</Text>
+                                        <View style={styles.starsRow}>
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                <TouchableOpacity
+                                                    key={star}
+                                                    disabled={!!report.citizenRating}
+                                                    onPress={() => handleRateReport(report, star)}
+                                                >
+                                                    <Ionicons
+                                                        name={star <= (report.citizenRating || 0) ? "star" : "star-outline"}
+                                                        size={32}
+                                                        color="#f59e0b"
+                                                        style={{ marginRight: 8 }}
+                                                    />
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                        {report.citizenRating ? (
+                                            <Text style={styles.startFeedbackText}>Thank you for your feedback!</Text>
+                                        ) : (
+                                            <Text style={styles.ratingHint}>Tap a star to rate the repair</Text>
+                                        )}
+                                    </View>
                                 </View>
                             )}
 

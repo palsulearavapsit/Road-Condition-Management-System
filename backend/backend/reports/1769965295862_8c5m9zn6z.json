@@ -20,11 +20,23 @@
       "y": 0.25
     }
   },
-  "status": "pending",
+  "status": "completed",
   "syncStatus": "synced",
   "createdAt": "2026-02-01T17:01:35.862Z",
   "updatedAt": "2026-02-01T17:01:35.862Z",
   "reportApprovedForPoints": true,
-  "syncedAt": "2026-02-01T22:41:23.087724",
+  "repairCompletedAt": "2026-02-01T18:39:06.264Z",
+  "repairProofUri": "blob:http://localhost:8081/76a96d2e-1648-4876-a6aa-c2b1e174d713",
+  "materialsUsed": [
+    {
+      "name": "cement",
+      "quantity": "2",
+      "unit": "kg"
+    }
+  ],
+  "rsoId": "rugved",
+  "citizenRating": 5,
+  "repairApprovedForPoints": true,
+  "syncedAt": "2026-02-02T00:09:44.994357",
   "serverStatus": "synced"
 }

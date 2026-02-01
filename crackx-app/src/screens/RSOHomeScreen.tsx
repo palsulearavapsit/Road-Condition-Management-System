@@ -139,21 +139,38 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
     };
 
     const takeRepairPhoto = async () => {
-        if (Platform.OS !== 'web') {
-            const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-            if (permissionResult.granted === false) {
-                Alert.alert(t('error'), 'Camera permission is required');
-                return;
+        try {
+            if (Platform.OS === 'web') {
+                // On Web, file upload is more reliable than camera for PWA/Basic testing
+                const result = await ImagePicker.launchImageLibraryAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    quality: 0.5,
+                    allowsEditing: true,
+                });
+                if (!result.canceled && result.assets && result.assets.length > 0) {
+                    setRepairPhoto(result.assets[0].uri);
+                }
+            } else {
+                // On Native, try Camera first
+                const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+                if (permissionResult.granted === false) {
+                    Alert.alert(t('error'), 'Camera permission is required');
+                    return;
+                }
+
+                const result = await ImagePicker.launchCameraAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    quality: 0.5,
+                    allowsEditing: true,
+                });
+
+                if (!result.canceled && result.assets && result.assets.length > 0) {
+                    setRepairPhoto(result.assets[0].uri);
+                }
             }
-        }
-
-        const result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            quality: 0.5,
-        });
-
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-            setRepairPhoto(result.assets[0].uri);
+        } catch (error) {
+            console.log('Error taking photo:', error);
+            Alert.alert('Error', 'Could not open camera/gallery.');
         }
     };
 
@@ -259,13 +276,18 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                                 {/* Report Photo */}
                                 {report.photoUri && (
                                     <View style={styles.imageContainer}>
-                                        <Ionicons name="image-outline" size={48} color={COLORS.gray} style={{ opacity: 0.5, position: 'absolute' }} />
-                                        <Text style={{ fontSize: 12, color: '#94a3b8', marginTop: 40, position: 'absolute' }}>Image Unavailable</Text>
-                                        <Image
-                                            source={{ uri: report.photoUri }}
-                                            style={styles.reportImage}
-                                            resizeMode="cover"
-                                        />
+                                        {Platform.OS === 'web' && report.photoUri.startsWith('file://') ? (
+                                            <View style={{ alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                                                <Ionicons name="phone-portrait-outline" size={48} color={COLORS.gray} />
+                                                <Text style={{ color: COLORS.gray, marginTop: 8 }}>Image only available on Mobile</Text>
+                                            </View>
+                                        ) : (
+                                            <Image
+                                                source={{ uri: report.photoUri }}
+                                                style={styles.reportImage}
+                                                resizeMode="cover"
+                                            />
+                                        )}
                                     </View>
                                 )}
 

@@ -38,7 +38,6 @@ export default function Sidebar({ role, activeRoute, onNavigate, onLogout, onClo
             case 'rso':
                 return [
                     { id: 'Assigned', label: 'Assigned Zone Feed', icon: '📍' },
-                    { id: 'UploadProof', label: 'Proof of Repair', icon: '📸' },
                     { id: 'VendorPortal', label: 'Material & Inventory', icon: '📦' },
                 ];
             case 'admin':

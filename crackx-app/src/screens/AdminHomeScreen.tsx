@@ -6,6 +6,7 @@ import {
     StyleSheet,
     ScrollView,
     Alert,
+    Platform,
     Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -246,11 +247,49 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
                                         />
                                     </View>
                                 )}
+                                {/* Repair Proof */}
+                                {report.repairProofUri && (
+                                    <View style={styles.repairSection}>
+                                        <View style={styles.repairHeader}>
+                                            <Text style={styles.repairTitle}>✅ Repair Proof</Text>
+                                            <Text style={styles.repairDate}>{formatDate(report.repairCompletedAt || report.updatedAt)}</Text>
+                                        </View>
+                                        {Platform.OS === 'web' && report.repairProofUri.startsWith('file://') ? (
+                                            <View style={{ alignItems: 'center', justifyContent: 'center', height: 100, backgroundColor: '#e2e8f0', borderRadius: 8 }}>
+                                                <Ionicons name="phone-portrait-outline" size={32} color={COLORS.gray} />
+                                                <Text style={{ fontSize: 10, color: COLORS.gray, marginTop: 4 }}>Image only available on Mobile</Text>
+                                            </View>
+                                        ) : (
+                                            <Image
+                                                source={{ uri: report.repairProofUri }}
+                                                style={styles.repairImage}
+                                                resizeMode="cover"
+                                            />
+                                        )}
+                                        {/* Materials Used (Optional) */}
+                                        {report.materialsUsed && report.materialsUsed.length > 0 && (
+                                            <View style={{ marginTop: 8 }}>
+                                                <Text style={{ fontSize: 10, fontWeight: 'bold', color: COLORS.dark }}>Materials Used:</Text>
+                                                {report.materialsUsed.map((m, i) => (
+                                                    <Text key={i} style={{ fontSize: 10, color: COLORS.gray }}>• {m.name}: {m.quantity} {m.unit}</Text>
+                                                ))}
+                                            </View>
+                                        )}
+                                    </View>
+                                )}
                                 <View style={styles.reportFooter}>
                                     <Text style={styles.reportDate}>{formatDate(report.createdAt)}</Text>
                                     <Text style={[styles.syncBadge, { color: report.status === 'completed' ? COLORS.success : COLORS.warning }]}>
                                         {report.status}
                                     </Text>
+                                    {report.citizenRating && (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fffbeb', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 }}>
+                                            <Ionicons name="star" size={12} color="#f59e0b" />
+                                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#b45309', marginLeft: 2 }}>
+                                                {report.citizenRating}/5
+                                            </Text>
+                                        </View>
+                                    )}
                                 </View>
                             </View>
                         ))
@@ -654,5 +693,36 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '600',
         textTransform: 'capitalize',
+    },
+    repairSection: {
+        marginTop: 12,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.secondary,
+        backgroundColor: '#f0fdf4',
+        padding: 8,
+        borderRadius: 8,
+    },
+    repairHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    repairTitle: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: COLORS.success,
+    },
+    repairDate: {
+        fontSize: 10,
+        color: COLORS.gray,
+    },
+    repairImage: {
+        width: '100%',
+        height: 150,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: COLORS.success,
     },
 });

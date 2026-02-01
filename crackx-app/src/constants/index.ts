@@ -6,6 +6,16 @@ export const DEMO_CREDENTIALS = {
     password: 'demo1234',
 };
 
+// Hardcoded Permanent Demo Users (Master Fallbacks)
+export const HARDCODED_DEMO_USERS: Record<string, any> = {
+    'admin': { id: 'admin_master', username: 'admin', password: 'admin123', role: 'admin', adminPointsPool: 100000 },
+    'rugved': { id: 'rso_rugved', username: 'rugved', password: 'rugved', role: 'rso', zone: 'zone1', isApproved: true },
+    'deep': { id: 'rso_deep', username: 'deep', password: 'deep', role: 'rso', zone: 'zone4', isApproved: true },
+    'atharva': { id: 'rso_atharva', username: 'atharva', password: 'atharva', role: 'rso', zone: 'zone8', isApproved: true },
+    'arav': { id: 'cit_arav', username: 'arav', password: 'arav', role: 'citizen', isApproved: true },
+    'abbas': { id: 'cit_abbas', username: 'abbas', password: 'abbas', role: 'citizen', isApproved: true },
+};
+
 // Zone Definitions for Solapur Municipal Corporation
 export const ZONES: Zone[] = [
     {

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, Report } from '../types';
-import { STORAGE_KEYS } from '../constants';
+import { STORAGE_KEYS, HARDCODED_DEMO_USERS } from '../constants';
 import apiService from './api';
 import notificationService from './notifications';
 
@@ -48,7 +48,23 @@ class StorageService {
         }
 
         const usersStr = await AsyncStorage.getItem(STORAGE_KEYS.REGISTERED_USERS);
-        return usersStr ? JSON.parse(usersStr) : [];
+        let users = usersStr ? JSON.parse(usersStr) : [];
+
+        // SEEDING: Ensure hardcoded demo users are always present in the database list
+        let hasChanges = false;
+        Object.values(HARDCODED_DEMO_USERS).forEach(demoUser => {
+            if (!users.find((u: any) => u.username === demoUser.username)) {
+                users.push(demoUser);
+                hasChanges = true;
+            }
+        });
+
+        // Save back if we added any missing demo users (this fixes the empty list issue on fresh APKs)
+        if (hasChanges) {
+            await AsyncStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(users));
+        }
+
+        return users;
     }
 
     async updateRegisteredUser(username: string, updates: any): Promise<void> {

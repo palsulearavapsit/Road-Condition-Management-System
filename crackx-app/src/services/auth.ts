@@ -1,5 +1,5 @@
 import { User, UserRole } from '../types';
-import { DEMO_CREDENTIALS } from '../constants';
+import { DEMO_CREDENTIALS, HARDCODED_DEMO_USERS } from '../constants';
 import storageService from './storage';
 
 class AuthService {
@@ -13,16 +13,8 @@ class AuthService {
         console.log(`[Auth] Login attempt: ${normalizedUsername}, Role: ${role}`);
 
         // 0. Hardcoded Permanent Demo Users (Master Fallbacks)
-        const HARDCODED_USERS: Record<string, any> = {
-            'admin': { id: 'admin_master', username: 'admin', password: 'admin123', role: 'admin', adminPointsPool: 100000 },
-            'rugved': { id: 'rso_rugved', username: 'rugved', password: 'rugved', role: 'rso', zone: 'zone1', isApproved: true },
-            'deep': { id: 'rso_deep', username: 'deep', password: 'deep', role: 'rso', zone: 'zone4', isApproved: true },
-            'atharva': { id: 'rso_atharva', username: 'atharva', password: 'atharva', role: 'rso', zone: 'zone8', isApproved: true },
-            'arav': { id: 'cit_arav', username: 'arav', password: 'arav', role: 'citizen', isApproved: true },
-            'abbas': { id: 'cit_abbas', username: 'abbas', password: 'abbas', role: 'citizen', isApproved: true },
-        };
-
-        const hardcoded = HARDCODED_USERS[normalizedUsername];
+        // 0. Hardcoded Permanent Demo Users (Master Fallbacks)
+        const hardcoded = HARDCODED_DEMO_USERS[normalizedUsername];
         if (hardcoded && hardcoded.password === password) {
             // Check if we have a persisted version (with points)
             const registeredUsers = await storageService.getRegisteredUsers();

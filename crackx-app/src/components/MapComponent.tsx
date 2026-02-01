@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, Platform } from 'react-native';
+import { StyleSheet, View, Text, Platform, ActivityIndicator } from 'react-native';
 import { MAPBOX_CONFIG } from '../config/mapbox';
 
 // Conditionally import Mapbox to avoid crashes on Web
@@ -28,6 +28,9 @@ export const MapComponent: React.FC<MapComponentProps> = ({
     interactive = true,
     markers,
 }) => {
+    const [isMapReady, setIsMapReady] = useState(false);
+    const [mapError, setMapError] = useState<string | null>(null);
+
     useEffect(() => {
         if (Mapbox) {
             Mapbox.setTelemetryEnabled(false);
@@ -54,14 +57,38 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         );
     }
 
+    // Map Error State
+    if (mapError) {
+        return (
+            <View style={[styles.container, styles.fallbackContainer]}>
+                <Text style={styles.fallbackText}>Map Error</Text>
+                <Text style={styles.fallbackSubtext}>{mapError}</Text>
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
+            {!isMapReady && (
+                <View style={styles.loadingOverlay}>
+                    <ActivityIndicator size="large" color="#f97316" />
+                    <Text style={styles.loadingText}>Loading Map...</Text>
+                </View>
+            )}
             <Mapbox.MapView
                 style={styles.map}
                 styleURL={MAPBOX_CONFIG.styleUrl}
                 rotateEnabled={false}
                 attributionEnabled={false}
                 logoEnabled={false}
+                onDidFinishLoadingMap={() => {
+                    console.log('Map loaded successfully');
+                    setIsMapReady(true);
+                }}
+                onDidFailLoadingMap={(error: any) => {
+                    console.error('Map failed to load:', error);
+                    setMapError('Failed to load map. Please check your internet connection.');
+                }}
                 onPress={(feature: any) => {
                     if (interactive && onLocationSelect && feature.geometry.type === 'Point') {
                         const [lng, lat] = feature.geometry.coordinates;
@@ -70,10 +97,10 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                 }}
             >
                 <Mapbox.Camera
-                    zoomLevel={12} // Zoomed out slightly to see more heatmap points
+                    zoomLevel={13}
                     centerCoordinate={[longitude, latitude]}
                     animationMode={'flyTo'}
-                    animationDuration={2000}
+                    animationDuration={1000}
                 />
 
                 {markers ? (
@@ -85,7 +112,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                             coordinate={[marker.longitude, marker.latitude]}
                         >
                             <View style={[styles.markerContainer, { opacity: 0.8 }]}>
-                                <View style={[styles.markerDot, { backgroundColor: marker.color, width: 24, height: 24, borderRadius: 12, borderWidth: 2 }]} />
+                                <View style={[styles.markerDot, { backgroundColor: marker.color, width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: 'white' }]} />
                             </View>
                         </Mapbox.PointAnnotation>
                     ))
@@ -113,9 +140,29 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         marginTop: 16,
         marginBottom: 16,
+        backgroundColor: '#f1f5f9',
     },
     map: {
         flex: 1,
+        width: '100%',
+        height: '100%',
+    },
+    loadingOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: '#f1f5f9',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000,
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 14,
+        color: '#64748b',
+        fontWeight: '600',
     },
     markerContainer: {
         alignItems: 'center',

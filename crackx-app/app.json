@@ -58,7 +58,7 @@
         "@rnmapbox/maps",
         {
           "RNMapboxMapsImpl": "mapbox",
-          "RNMapboxMapsDownloadToken": false
+          "RNMapboxMapsDownloadToken": "pk.eyJ1IjoiYXJhdnBhbHN1bGUiLCJhIjoiY21sMTdsbHBiMDEzMTNtcXR2amt3dW91cyJ9.RZ6DjJ3i7MiZfshrM-mjsw"
         }
       ],
       "expo-font"

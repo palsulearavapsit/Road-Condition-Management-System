@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "jsEngine": "hermes",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -57,8 +57,7 @@
       [
         "@rnmapbox/maps",
         {
-          "RNMapboxMapsImpl": "mapbox",
-          "RNMapboxMapsDownloadToken": "pk.eyJ1IjoiYXJhdnBhbHN1bGUiLCJhIjoiY21sMTdsbHBiMDEzMTNtcXR2amt3dW91cyJ9.RZ6DjJ3i7MiZfshrM-mjsw"
+          "RNMapboxMapsImpl": "mapbox"
         }
       ],
       "expo-font"

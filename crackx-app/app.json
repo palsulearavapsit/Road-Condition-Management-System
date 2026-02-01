@@ -49,12 +49,6 @@
         }
       ],
       [
-        "expo-camera",
-        {
-          "cameraPermission": "CrackX needs camera access to capture photos of road damages."
-        }
-      ],
-      [
         "expo-image-picker",
         {
           "photosPermission": "CrackX needs access to your photo library to select damage photos."

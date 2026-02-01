@@ -31,13 +31,12 @@
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease",
-        "resourceClass": "medium",
-        "enableProguardInReleaseBuilds": true,
-        "enableShrinkResourcesInReleaseBuilds": true
+        "resourceClass": "medium"
       },
       "env": {
         "GRADLE_OPTS": "-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError"
-      }
+      },
+      "prebuildCommand": "bash eas-build-pre-install.sh"
     }
   },
   "submit": {

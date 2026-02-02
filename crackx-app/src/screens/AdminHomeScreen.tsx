@@ -240,11 +240,18 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
                                 {/* Photo Thumbnail */}
                                 {report.photoUri && (
                                     <View style={styles.imageContainer}>
-                                        <Image
-                                            source={{ uri: report.photoUri }}
-                                            style={styles.reportImage}
-                                            resizeMode="cover"
-                                        />
+                                        {Platform.OS === 'web' && report.photoUri.startsWith('file://') ? (
+                                            <View style={{ alignItems: 'center', justifyContent: 'center', height: 150, backgroundColor: '#e2e8f0', borderRadius: 8 }}>
+                                                <Ionicons name="phone-portrait-outline" size={32} color={COLORS.gray} />
+                                                <Text style={{ fontSize: 10, color: COLORS.gray, marginTop: 4 }}>Image only available on Mobile</Text>
+                                            </View>
+                                        ) : (
+                                            <Image
+                                                source={{ uri: report.photoUri }}
+                                                style={styles.reportImage}
+                                                resizeMode="cover"
+                                            />
+                                        )}
                                     </View>
                                 )}
                                 {/* Repair Proof */}

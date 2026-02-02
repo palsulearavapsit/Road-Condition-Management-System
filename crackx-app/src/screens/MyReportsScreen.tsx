@@ -6,6 +6,7 @@ import {
     StyleSheet,
     ScrollView,
     Image,
+    Platform,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -102,11 +103,18 @@ export default function MyReportsScreen({ onNavigate, onBack, onLogout }: MyRepo
                             {/* Photo */}
                             {report.photoUri && (
                                 <View style={styles.imageContainer}>
-                                    <Image
-                                        source={{ uri: report.photoUri }}
-                                        style={styles.reportImage}
-                                        resizeMode="cover"
-                                    />
+                                    {Platform.OS === 'web' && report.photoUri.startsWith('file://') ? (
+                                        <View style={{ alignItems: 'center', justifyContent: 'center', height: 200, backgroundColor: '#e2e8f0', borderRadius: 12 }}>
+                                            <Ionicons name="phone-portrait-outline" size={40} color={COLORS.gray} />
+                                            <Text style={{ fontSize: 12, color: COLORS.gray, marginTop: 8 }}>Image only available on Mobile</Text>
+                                        </View>
+                                    ) : (
+                                        <Image
+                                            source={{ uri: report.photoUri }}
+                                            style={styles.reportImage}
+                                            resizeMode="cover"
+                                        />
+                                    )}
                                 </View>
                             )}
 

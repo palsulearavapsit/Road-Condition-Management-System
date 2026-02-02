@@ -47,20 +47,27 @@ export default function AdminHeatmapScreen({ onNavigate, onLogout }: AdminHeatma
     // Filter reports by severity for Heatmap visualization
     const highSeverityReports = reports.filter(r => r.aiDetection?.severity === 'high');
     const mediumSeverityReports = reports.filter(r => r.aiDetection?.severity === 'medium');
+    const lowSeverityReports = reports.filter(r => r.aiDetection?.severity === 'low');
 
-    // Prepare Markers for Heatmap
+    // Prepare Markers for Heatmap - Show ALL reports
     const mapMarkers = [
         ...highSeverityReports.map(r => ({
             id: r.id,
             latitude: r.location?.latitude || 0,
             longitude: r.location?.longitude || 0,
-            color: COLORS.danger
+            color: COLORS.danger // Red for high severity
         })),
         ...mediumSeverityReports.map(r => ({
             id: r.id,
             latitude: r.location?.latitude || 0,
             longitude: r.location?.longitude || 0,
-            color: COLORS.warning
+            color: COLORS.warning // Orange for medium severity
+        })),
+        ...lowSeverityReports.map(r => ({
+            id: r.id,
+            latitude: r.location?.latitude || 0,
+            longitude: r.location?.longitude || 0,
+            color: '#fbbf24' // Yellow for low severity
         }))
     ];
 
@@ -87,11 +94,15 @@ export default function AdminHeatmapScreen({ onNavigate, onLogout }: AdminHeatma
                     <View style={styles.legend}>
                         <View style={styles.legendItem}>
                             <View style={[styles.dot, { backgroundColor: COLORS.danger }]} />
-                            <Text style={styles.legendText}>High Severity (Critical)</Text>
+                            <Text style={styles.legendText}>High Severity</Text>
                         </View>
                         <View style={styles.legendItem}>
                             <View style={[styles.dot, { backgroundColor: COLORS.warning }]} />
                             <Text style={styles.legendText}>Medium Severity</Text>
+                        </View>
+                        <View style={styles.legendItem}>
+                            <View style={[styles.dot, { backgroundColor: '#fbbf24' }]} />
+                            <Text style={styles.legendText}>Low Severity</Text>
                         </View>
                     </View>
 

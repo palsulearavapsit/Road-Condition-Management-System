@@ -23,10 +23,10 @@
     }
   },
   "status": "pending",
-  "syncStatus": "pending",
+  "syncStatus": "synced",
   "createdAt": "2026-02-01T19:02:14.410Z",
   "updatedAt": "2026-02-01T19:02:14.410Z",
   "reportApprovedForPoints": true,
-  "syncedAt": "2026-02-02T00:44:10.201642",
+  "syncedAt": "2026-02-02T08:45:19.661556",
   "serverStatus": "synced"
 }

@@ -9,6 +9,7 @@ import sys
 import subprocess
 import time
 import signal
+import webbrowser
 from pathlib import Path
 
 # Colors for terminal output
@@ -91,18 +92,18 @@ def start_backend():
     return backend_process
 
 def start_frontend():
-    """Start Expo frontend - WEB VERSION"""
-    print(f"\n{Colors.BLUE}🌐 Starting Web App in Browser...{Colors.END}")
+    """Start Expo frontend"""
+    print(f"\n{Colors.BLUE}🌐 Starting Frontend App...{Colors.END}")
     print(f"{Colors.YELLOW}   Location: crackx-app/{Colors.END}")
-    print(f"{Colors.YELLOW}   Opening at: http://localhost:19006{Colors.END}\n")
+    print(f"{Colors.YELLOW}   Access at: http://localhost:19006{Colors.END}\n")
     
     frontend_dir = Path.cwd() / "crackx-app"
     
-    # Start frontend process with --web flag to directly open web version
+    # Start frontend process without --web flag
     if sys.platform == "win32":
-        # Windows - Start web version directly
+        # Windows
         frontend_process = subprocess.Popen(
-            ["npx", "expo", "start", "--web"],
+            ["npx", "expo", "start"],
             cwd=str(frontend_dir),
             creationflags=subprocess.CREATE_NEW_CONSOLE,
             shell=True
@@ -110,37 +111,34 @@ def start_frontend():
     else:
         # Linux/Mac
         frontend_process = subprocess.Popen(
-            ["npx", "expo", "start", "--web"],
+            ["npx", "expo", "start"],
             cwd=str(frontend_dir),
             shell=True
         )
     
+    
     time.sleep(3)  # Wait for frontend to start
     print(f"{Colors.GREEN}✅ Frontend app started!{Colors.END}")
+    
+    # Auto-open browser
+    print(f"{Colors.BLUE}🌐 Opening browser at http://localhost:8081/{Colors.END}")
+    time.sleep(2)  # Wait a bit more for server to be ready
+    webbrowser.open('http://localhost:8081/')
+    
     return frontend_process
 
 def print_instructions():
     """Print usage instructions"""
     instructions = f"""
-{Colors.BOLD}{Colors.GREEN}🎉 CrackX Web App is now running!{Colors.END}
+{Colors.BOLD}{Colors.GREEN}🎉 CrackX Application is now running!{Colors.END}
 
 {Colors.BOLD}🌐 Access Points:{Colors.END}
    • Backend API: http://localhost:5000
-   • Web App: http://localhost:19006
-   • The web app should open automatically in your browser
-   
-{Colors.BOLD}💡 For Mobile App:{Colors.END}
-   • Use 'eas build' to create APK (see DEPLOYMENT_GUIDE.md)
-   • APK can be distributed separately
+   • Web App: http://localhost:8081
    
 {Colors.BOLD}⚠️  To Stop:{Colors.END}
-   • Close this window, or
    • Press Ctrl+C in this terminal, or
    • Close the backend and frontend console windows
-
-{Colors.BOLD}📚 Documentation:{Colors.END}
-   • See SETUP_GUIDE.md for setup instructions
-   • See DEPLOYMENT_GUIDE.md for APK build & deployment
    
 {Colors.YELLOW}Keeping this window open...{Colors.END}
 {Colors.YELLOW}Press Ctrl+C to stop all services{Colors.END}

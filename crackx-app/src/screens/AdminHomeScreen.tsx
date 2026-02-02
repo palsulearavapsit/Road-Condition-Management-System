@@ -282,14 +282,6 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
                                     <Text style={[styles.syncBadge, { color: report.status === 'completed' ? COLORS.success : COLORS.warning }]}>
                                         {report.status}
                                     </Text>
-                                    {report.citizenRating && (
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fffbeb', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 }}>
-                                            <Ionicons name="star" size={12} color="#f59e0b" />
-                                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#b45309', marginLeft: 2 }}>
-                                                {report.citizenRating}/5
-                                            </Text>
-                                        </View>
-                                    )}
                                 </View>
                             </View>
                         ))

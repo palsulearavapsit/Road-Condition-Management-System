@@ -67,13 +67,6 @@ export default function DashboardLayout({
                         </View>
                     )}
 
-                    {/* Static Announcement Bar */}
-                    <View style={styles.announcementBar}>
-                        <Text style={styles.announcementText} numberOfLines={1} ellipsizeMode="tail">
-                            Welcome to CrackX: Road Construction Monitoring System • Report road damages and earn rewards!
-                        </Text>
-                    </View>
-
                     {/* Page Content */}
                     <View style={styles.pageContent}>
                         {children}
@@ -166,22 +159,6 @@ const styles = StyleSheet.create({
     pageContent: {
         flex: 1,
         padding: 16,
-    },
-    announcementBar: {
-        width: '100%',
-        backgroundColor: '#fff7ed',
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderBottomWidth: 1,
-        borderBottomColor: '#fed7aa',
-    },
-    announcementText: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: COLORS.primary,
-        textAlign: 'center',
     },
     // Mobile Drawer Styles
     modalOverlay: {

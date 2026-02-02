@@ -36,7 +36,13 @@
       ],
       "package": "com.crackx.app",
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "enableDangerousExperimentalLeanBuilds": true,
+      "bundleIdentifier": "com.crackx.app",
+      "versionCode": 1,
+      "abiFilters": [
+        "arm64-v8a"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

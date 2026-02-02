@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
     },
     infoText: {
         fontSize: 12,
-        color: COLORS.gray,
+        color: COLORS.dark,
         lineHeight: 20,
         fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     },

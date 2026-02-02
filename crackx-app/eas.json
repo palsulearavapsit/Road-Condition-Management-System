@@ -35,6 +35,14 @@
       },
       "env": {
         "GRADLE_OPTS": "-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError"
+      },
+      "cache": {
+        "key": "production-apk-cache",
+        "cacheDefaultPaths": true,
+        "customPaths": [
+          "node_modules",
+          ".expo"
+        ]
       }
     }
   },

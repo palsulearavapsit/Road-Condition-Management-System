@@ -26,6 +26,7 @@
   "syncStatus": "synced",
   "createdAt": "2026-02-02T03:14:49.329Z",
   "updatedAt": "2026-02-02T03:14:49.329Z",
-  "syncedAt": "2026-02-02T08:45:19.686515",
+  "reportApprovedForPoints": true,
+  "syncedAt": "2026-02-02T08:49:54.148958",
   "serverStatus": "synced"
 }

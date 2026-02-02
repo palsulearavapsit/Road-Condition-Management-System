@@ -95,9 +95,7 @@ export default function LoginScreen({ onLoginSuccess, onSignupClick }: LoginScre
                         ))}
                     </View>
 
-                    <View style={styles.demoBadge}>
-                        <Text style={styles.demoText}>{t('demo_mode')}</Text>
-                    </View>
+
                 </View>
 
                 {/* Login Form */}
@@ -126,48 +124,7 @@ export default function LoginScreen({ onLoginSuccess, onSignupClick }: LoginScre
                         />
                     </View>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>{t('account_type')}</Text>
 
-                        {/* Custom Dropdown */}
-                        <View style={{ zIndex: 1000 }}>
-                            <TouchableOpacity
-                                style={styles.dropdownHeader}
-                                onPress={() => setDropdownOpen(!dropdownOpen)}
-                            >
-                                <Text style={styles.dropdownHeaderText}>{t(selectedRole)}</Text>
-                                <Text style={styles.dropdownArrow}>{dropdownOpen ? '▲' : '▼'}</Text>
-                            </TouchableOpacity>
-
-                            {dropdownOpen && (
-                                <View style={styles.dropdownList}>
-                                    {roles.map((role) => (
-                                        <TouchableOpacity
-                                            key={role.value}
-                                            style={[
-                                                styles.dropdownItem,
-                                                selectedRole === role.value && styles.dropdownItemActive
-                                            ]}
-                                            onPress={() => {
-                                                setSelectedRole(role.value);
-                                                setDropdownOpen(false);
-                                            }}
-                                        >
-                                            <Text
-                                                style={[
-                                                    styles.dropdownItemText,
-                                                    selectedRole === role.value && styles.dropdownItemTextActive
-                                                ]}
-                                            >
-                                                {role.label}
-                                            </Text>
-                                            {selectedRole === role.value && <Text style={styles.checkIcon}>✓</Text>}
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            )}
-                        </View>
-                    </View>
 
                     <TouchableOpacity
                         style={[styles.loginButton, loading && styles.loginButtonDisabled]}

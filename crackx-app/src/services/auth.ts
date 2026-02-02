@@ -48,12 +48,11 @@ class AuthService {
             const registeredUsers = await storageService.getRegisteredUsers();
             const found = registeredUsers.find(u =>
                 u.username.trim().toLowerCase() === normalizedUsername &&
-                u.password === password &&
-                (role === 'admin' || u.role === role)
+                u.password === password
             );
 
             if (found) {
-                console.log(`[Auth] Registered user found: ${normalizedUsername}`);
+                console.log(`[Auth] Registered user found: ${normalizedUsername} with role: ${found.role}`);
                 if (found.role === 'rso' && found.isApproved === false) {
                     throw new Error('Account is pending Admin approval.');
                 }

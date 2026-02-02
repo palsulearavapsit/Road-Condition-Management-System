@@ -512,4 +512,33 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: COLORS.dark,
     },
+    feedbackSection: {
+        marginTop: 16,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#d1fae5',
+    },
+    feedbackTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.dark,
+        marginBottom: 12,
+    },
+    starsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    startFeedbackText: {
+        fontSize: 12,
+        color: COLORS.success,
+        fontWeight: '600',
+        marginTop: 4,
+    },
+    ratingHint: {
+        fontSize: 12,
+        color: COLORS.gray,
+        fontStyle: 'italic',
+        marginTop: 4,
+    },
 });

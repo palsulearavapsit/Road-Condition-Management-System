@@ -39,10 +39,7 @@
       "predictiveBackGestureEnabled": false,
       "enableDangerousExperimentalLeanBuilds": true,
       "bundleIdentifier": "com.crackx.app",
-      "versionCode": 1,
-      "abiFilters": [
-        "arm64-v8a"
-      ]
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -72,17 +69,18 @@
           "android": {
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
-            "extraProguardRules": "-keep class com.mapbox.** { *; }\n-keep class com.rnmapbox.** { *; }\n-dontwarn com.mapbox.**"
+            "extraProguardRules": "-keep class com.mapbox.** { *; }\n-keep class com.rnmapbox.** { *; }\n-dontwarn com.mapbox.**",
+            "enableMinifyInReleaseBuilds": true
           }
         }
       ],
       "expo-font"
     ],
+    "owner": "aravpalsule",
     "extra": {
       "eas": {
-        "projectId": "ae7e3c34-2f16-4960-9f71-5a8b907fda1a"
+        "projectId": "54a8f695-a7b0-41a4-94f3-533489fd449a"
       }
-    },
-    "owner": "aravpalsule"
+    }
   }
 }

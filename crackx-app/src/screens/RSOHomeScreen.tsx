@@ -15,11 +15,12 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
 import { Report, User } from '../types';
-import storageService from '../services/storage';
-import authService from '../services/auth';
+import storageService from '../services/supabaseStorage';
+import authService from '../services/supabaseAuth';
 import { formatDate, getSeverityColor } from '../utils';
 import * as ImagePicker from 'expo-image-picker';
 import notificationService from '../services/notifications';
+import { uploadImageToSupabase } from '../services/imageUpload';
 import DashboardLayout from '../components/DashboardLayout';
 
 interface RSOHomeScreenProps {
@@ -189,19 +190,30 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
         try {
             const report = await storageService.getReportById(selectedReport.id);
             if (report) {
-                report.status = 'completed';
-                report.repairCompletedAt = new Date().toISOString();
-                report.repairProofUri = repairPhoto;
-                report.materialsUsed = materials;
-                report.rsoId = user?.username; // Tracking who solved it
+                // Upload photo to Supabase
+                try {
+                    const publicUrl = await uploadImageToSupabase(repairPhoto, 'repair-proofs', report.id);
 
-                await storageService.saveReport(report);
+                    report.status = 'completed';
+                    report.repairCompletedAt = new Date().toISOString();
+                    report.repairProofUri = publicUrl; // Save Public URL
+                    report.materialsUsed = materials;
+                    report.rsoId = user?.username;
 
-                setModalVisible(false);
-                loadReports();
-                Alert.alert(t('success'), t('repair_completed'));
+                    await storageService.saveReport(report);
+
+                    setModalVisible(false);
+                    loadReports();
+                    Alert.alert(t('success'), t('repair_completed'));
+                } catch (uploadError) {
+                    console.error('Upload failed:', uploadError);
+                    Alert.alert('Upload Failed', 'Could not upload repair photo. Please check your connection and try again.');
+                    setUploading(false); // Stop here
+                    return;
+                }
             }
         } catch (error) {
+            console.error(error);
             Alert.alert(t('error'), 'Failed to update report');
         } finally {
             setUploading(false);

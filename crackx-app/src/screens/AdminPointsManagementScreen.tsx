@@ -17,8 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../constants';
 import { Report, User } from '../types';
-import storageService from '../services/storage';
-import authService from '../services/auth';
+import storageService from '../services/supabaseStorage';
+import authService from '../services/supabaseAuth';
 import { formatDate } from '../utils';
 import DashboardLayout from '../components/DashboardLayout';
 
@@ -69,9 +69,27 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
                 storageService.getRegisteredUsers(),
                 authService.getCurrentUser()
             ]);
+
+            // IMPORTANT: Sync current user with registered users list
+            // This ensures admin pool and points are always up-to-date
+            if (current) {
+                const updatedCurrentUser = allUsers.find(u => u.username === current.username);
+                if (updatedCurrentUser) {
+                    // Update the current user with latest data from registered users
+                    const syncedUser = {
+                        ...current,
+                        points: updatedCurrentUser.points !== undefined ? updatedCurrentUser.points : current.points,
+                        adminPointsPool: updatedCurrentUser.adminPointsPool !== undefined ? updatedCurrentUser.adminPointsPool : current.adminPointsPool
+                    };
+                    await storageService.saveUser(syncedUser);
+                    setAdminUser(syncedUser);
+                } else {
+                    setAdminUser(current);
+                }
+            }
+
             setReports(allReports);
             setUsers(allUsers);
-            setAdminUser(current);
         } catch (error) {
             console.error(error);
         } finally {
@@ -87,7 +105,30 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
 
         // --- Optimistic UI Update ---
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        // 1. Remove from Pending List immediately
+
+        // Calculate new values
+        const targetUser = users.find(u => u.id === userId || u.username === userId);
+        if (!targetUser) {
+            Alert.alert('Error', 'User not found');
+            return;
+        }
+
+        const newUserPoints = (Number(targetUser.points) || 0) + points;
+        const newAdminPool = (Number(adminUser.adminPointsPool) || 0) - points;
+
+        // 1. Update Admin Pool immediately
+        const updatedAdmin = { ...adminUser, adminPointsPool: newAdminPool };
+        setAdminUser(updatedAdmin);
+
+        // 2. Update User Points immediately
+        setUsers(prev => prev.map(u => {
+            if (u.id === userId || u.username === userId) {
+                return { ...u, points: newUserPoints };
+            }
+            return u;
+        }));
+
+        // 3. Remove from Pending List immediately
         setReports(prev => prev.map(r => {
             if (r.id === reportId) {
                 return {
@@ -98,36 +139,15 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
             }
             return r;
         }));
-
-        // 2. Update User Points immediately (Force Number type safety)
-        setUsers(prev => prev.map(u => {
-            if (u.id === userId || u.username === userId) {
-                return { ...u, points: (Number(u.points) || 0) + points };
-            }
-            return u;
-        }));
-
-        // 3. Update Admin Pool immediately (Force Number type safety)
-        setAdminUser(prev => prev ? { ...prev, adminPointsPool: (Number(prev.adminPointsPool) || 0) - points } : prev);
         // -----------------------------
 
         try {
-            // 1. Find user and update points (Backend)
-            const targetUser = users.find(u => u.id === userId || u.username === userId);
-            if (!targetUser) throw new Error('User not found');
+            // Save to backend (in background)
+            await storageService.updateRegisteredUser(targetUser.username, { points: newUserPoints });
+            await storageService.updateRegisteredUser(adminUser.username, { adminPointsPool: newAdminPool });
+            await storageService.saveUser(updatedAdmin);
 
-            const updatedPoints = (Number(targetUser.points) || 0) + points;
-            await storageService.updateRegisteredUser(targetUser.username, { points: updatedPoints });
-
-            // 2. Deduct from Admin Pool
-            const updatedPool = (Number(adminUser.adminPointsPool) || 0) - points;
-            const updatedAdmin = { ...adminUser, adminPointsPool: updatedPool };
-
-            // Persist changes to both the User List AND the Current Session User
-            await storageService.updateRegisteredUser(adminUser.username, { adminPointsPool: updatedPool });
-            await storageService.saveUser(updatedAdmin); // IMPORTANT: Keeps authService.getCurrentUser() in sync
-
-            // 3. Mark report as awarded
+            // Mark report as awarded
             const reportIndex = reports.findIndex(r => r.id === reportId);
             if (reportIndex >= 0) {
                 const updatedReport = { ...reports[reportIndex] };
@@ -136,14 +156,11 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
                 await storageService.saveReport(updatedReport);
             }
 
-            // Success: Rely on Optimistic Update. Do NOT reload data to prevent stale reads.
-            // loadData(); 
-
         } catch (error) {
             console.error(error);
-            // Only revert on actual failure, but don't blocking alert
-            // Alert.alert('Error', 'Failed to save point transaction. Reverting...');
-            loadData(); // Revert on error
+            Alert.alert('Error', 'Failed to save points. Please try again.');
+            // Revert on error
+            loadData();
         }
     };
 
@@ -173,7 +190,8 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
                 if (type === 'repair') updatedReport.repairApprovedForPoints = true;
                 await storageService.saveReport(updatedReport);
             }
-            // Success: Rely on Optimistic Update.
+            // Refresh data from backend
+            await loadData();
         } catch (error) {
             console.error('Disapprove failed', error);
             // Revert state if backend save fails

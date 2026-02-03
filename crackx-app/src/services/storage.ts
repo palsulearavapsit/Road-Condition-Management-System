@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, Report } from '../types';
 import { STORAGE_KEYS, HARDCODED_DEMO_USERS } from '../constants';
-import apiService from './api';
 import notificationService from './notifications';
 
 class StorageService {
@@ -21,12 +20,8 @@ class StorageService {
 
     // Registered Users
     async saveRegisteredUser(user: any): Promise<void> {
-        // Try saving to backend first for persistence
-        try {
-            await apiService.registerUser(user);
-        } catch (e) {
-            console.log('User sync to backend failed');
-        }
+        // Was trying to save to backend, removed for now.
+
 
         const users = await this.getRegisteredUsers();
         if (!users.find(u => u.username === user.username)) {
@@ -73,28 +68,22 @@ class StorageService {
     }
 
     async updateRegisteredUser(username: string, updates: any): Promise<void> {
-        // Sync to backend
-        try {
-            await apiService.updateUser(username, updates);
-        } catch (e) {
-            console.log('User update sync failed');
-        }
-
+        // 1. Save to local storage immediately (offline-first)
         const users = await this.getRegisteredUsers();
         const index = users.findIndex(u => u.username === username);
         if (index >= 0) {
             users[index] = { ...users[index], ...updates };
             await AsyncStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(users));
+            console.log(`[Storage] Updated user ${username} locally`);
         }
+
+        // Backend sync removed (Legacy API).
+        console.log(`[Storage] User ${username} saved locally.`);
     }
 
+
     async deleteRegisteredUser(username: string): Promise<void> {
-        // Attempt to delete from backend
-        try {
-            await apiService.deleteUser(username);
-        } catch (e) {
-            console.log('User delete sync failed');
-        }
+        // Backend delete removed (Legacy API).
 
         // Get local users directly to avoid re-fetching stale data from backend
         const usersStr = await AsyncStorage.getItem(STORAGE_KEYS.REGISTERED_USERS);
@@ -122,12 +111,7 @@ class StorageService {
 
         await AsyncStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
 
-        // Attempt background sync
-        try {
-            await apiService.postReport(report);
-        } catch (e) {
-            console.log('Online sync failed, saving to queue');
-        }
+        // Backend post removed (Legacy API).
     }
 
     async getReports(): Promise<Report[]> {

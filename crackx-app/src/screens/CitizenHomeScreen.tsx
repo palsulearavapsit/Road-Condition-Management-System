@@ -6,14 +6,15 @@ import {
     StyleSheet,
     ScrollView,
     Alert,
+    Platform,
+    Image,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
 import { Report, User } from '../types';
-import storageService from '../services/storage';
-import syncService from '../services/sync';
-import authService from '../services/auth';
+import storageService from '../services/supabaseStorage';
+import authService from '../services/supabaseAuth';
 import DashboardLayout from '../components/DashboardLayout';
 
 interface CitizenHomeScreenProps {
@@ -25,9 +26,6 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
     const { t } = useTranslation();
     const [reports, setReports] = useState<Report[]>([]);
     const [user, setUser] = useState<User | null>(null);
-    const [syncStats, setSyncStats] = useState({ pendingSync: 0, synced: 0 });
-    const [isOnline, setIsOnline] = useState(false);
-    const [loading, setLoading] = useState(false);
     const [users, setUsers] = useState<User[]>([]);
 
     useEffect(() => {
@@ -36,20 +34,15 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
 
     const loadData = async () => {
         try {
-            const user = await authService.getCurrentUser();
+            // Refresh user data (points) from server
+            const user = await authService.refreshUserData();
             if (user) {
                 setUser(user);
                 const userReports = await storageService.getReportsByCitizen(user.id);
                 setReports(userReports);
             }
 
-            const stats = await syncService.getSyncStats();
-            setSyncStats(stats);
-
-            const online = await syncService.isOnline();
-            setIsOnline(online);
-
-            // Load all users to find RSO officers
+            // Load all users to find RSO officers for display
             const allUsers = await storageService.getRegisteredUsers();
             setUsers(allUsers);
         } catch (error) {
@@ -57,22 +50,7 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
         }
     };
 
-    const handleSync = async () => {
-        setLoading(true);
-        try {
-            const result = await syncService.syncReports();
-            Alert.alert(
-                t('success'),
-                `Synced ${result.success} reports successfully${result.failed > 0 ? `, ${result.failed} failed` : ''
-                }`
-            );
-            loadData();
-        } catch (error: any) {
-            Alert.alert(t('error'), error.message || 'Failed to sync reports');
-        } finally {
-            setLoading(false);
-        }
-    };
+
 
     const handleLogout = async () => {
         await authService.logout();
@@ -84,13 +62,7 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
             title={t('citizen_dashboard')}
             role="citizen"
             activeRoute="Dashboard"
-            onNavigate={(route) => {
-                if (route === 'Sync') {
-                    handleSync();
-                } else {
-                    onNavigate(route);
-                }
-            }}
+            onNavigate={onNavigate}
             onLogout={handleLogout}
         >
             <View style={styles.walletBar}>
@@ -101,23 +73,6 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
                 <Text style={styles.welcomeText}>Welcome, {user?.username}!</Text>
             </View>
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                {/* Status Card */}
-                <View style={styles.statusCard}>
-                    <View style={styles.statusRow}>
-                        <View style={styles.statusItem}>
-                            <Text style={styles.statusValue}>{reports.length}</Text>
-                            <Text style={styles.statusLabel}>{t('my_reports')}</Text>
-                        </View>
-                        <View style={styles.divider} />
-                        <View style={styles.statusItem}>
-                            <Text style={[styles.statusValue, { color: COLORS.warning }]}>
-                                {syncStats.pendingSync}
-                            </Text>
-                            <Text style={styles.statusLabel}>{t('pending_sync')}</Text>
-                        </View>
-                    </View>
-                </View>
-
                 {/* Quick Actions Grid */}
                 <View style={styles.gridContainer}>
                     <TouchableOpacity
@@ -189,6 +144,19 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
                                         return '';
                                     })()}
                                 </Text>
+
+                                {/* SHOW REPAIR IMAGE IF COMPLETED */}
+                                {report.status === 'completed' && report.repairProofUri && (
+                                    <View style={styles.repairProofContainer}>
+                                        <Text style={styles.repairLabel}>Repair Complete:</Text>
+                                        <Image
+                                            source={{ uri: report.repairProofUri }}
+                                            style={styles.repairImage}
+                                            resizeMode="cover"
+                                        />
+                                    </View>
+                                )}
+
                                 <View style={styles.reportFooter}>
                                     <Text style={styles.reportDate}>
                                         {new Date(report.createdAt).toLocaleDateString()}
@@ -197,14 +165,11 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
                                         style={[
                                             styles.syncBadge,
                                             {
-                                                color:
-                                                    report.syncStatus === 'synced'
-                                                        ? COLORS.success
-                                                        : COLORS.warning,
+                                                color: report.status === 'completed' ? COLORS.success : COLORS.warning
                                             },
                                         ]}
                                     >
-                                        {report.status} • {report.syncStatus}
+                                        {report.status}
                                     </Text>
                                 </View>
                             </View>
@@ -418,5 +383,21 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         color: COLORS.dark,
-    }
+    },
+    repairProofContainer: {
+        marginTop: 12,
+        marginBottom: 8,
+    },
+    repairLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: COLORS.success,
+        marginBottom: 6,
+    },
+    repairImage: {
+        width: '100%',
+        height: 180,
+        borderRadius: 8,
+        backgroundColor: '#f1f5f9',
+    },
 });

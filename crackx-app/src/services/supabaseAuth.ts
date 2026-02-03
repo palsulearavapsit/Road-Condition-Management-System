@@ -1,10 +1,15 @@
 import { User, UserRole } from '../types';
 import { DEMO_CREDENTIALS, HARDCODED_DEMO_USERS } from '../constants';
-import storageService from './storage';
+import supabaseStorage from './supabaseStorage';
 
-class AuthService {
+/**
+ * Authentication Service with Supabase Integration
+ * Handles login, registration, and session management
+ */
+class SupabaseAuthService {
     /**
      * Login with demo credentials or registered users
+     * Syncs with Supabase to get latest data (points, etc.)
      */
     async login(username: string, password: string, role: UserRole): Promise<User | null> {
         let user: User | null = null;
@@ -12,22 +17,24 @@ class AuthService {
 
         console.log(`[Auth] Login attempt: ${normalizedUsername}, Role: ${role}`);
 
-        // 0. Hardcoded Permanent Demo Users (Master Fallbacks)
-        // 0. Hardcoded Permanent Demo Users (Master Fallbacks)
+        // 0. Check Hardcoded Permanent Demo Users (Master Fallbacks)
         const hardcoded = HARDCODED_DEMO_USERS[normalizedUsername];
         if (hardcoded && hardcoded.password === password) {
-            // Check if we have a persisted version (with points)
-            const registeredUsers = await storageService.getRegisteredUsers();
+            // Check if we have a persisted version in Supabase (with points)
+            const registeredUsers = await supabaseStorage.getRegisteredUsers();
             const persisted = registeredUsers.find(u => u.username === normalizedUsername);
 
             if (persisted) {
-                console.log(`[Auth] Using persisted data for demo user: ${normalizedUsername}`);
+                console.log(`[Auth] Using Supabase data for demo user: ${normalizedUsername}`);
                 const { password: _, ...rest } = persisted;
                 user = rest as User;
             } else {
                 console.log(`[Auth] Hardcoded user found: ${normalizedUsername}`);
                 const { password: _, ...userData } = hardcoded;
                 user = userData as User;
+
+                // Save to Supabase for future persistence
+                await supabaseStorage.saveRegisteredUser(hardcoded);
             }
         }
         // 1. Check Generic Demo Credentials
@@ -43,9 +50,9 @@ class AuthService {
                 adminPointsPool: role === 'admin' ? 10000 : 0
             };
         } else {
-            // 2. Check Registered Users (AsyncStorage)
-            console.log(`[Auth] Checking registered users...`);
-            const registeredUsers = await storageService.getRegisteredUsers();
+            // 2. Check Registered Users from Supabase
+            console.log(`[Auth] Checking registered users in Supabase...`);
+            const registeredUsers = await supabaseStorage.getRegisteredUsers();
             const found = registeredUsers.find(u =>
                 u.username.trim().toLowerCase() === normalizedUsername &&
                 u.password === password
@@ -63,7 +70,9 @@ class AuthService {
 
         if (user) {
             console.log(`[Auth] Login successful for: ${user.username}`);
-            await storageService.saveUser(user);
+
+            // Save current session
+            await supabaseStorage.saveUser(user);
             return user;
         }
 
@@ -75,7 +84,7 @@ class AuthService {
      * Register a new user
      */
     async register(username: string, password: string, role: UserRole, zone?: string): Promise<boolean> {
-        const users = await storageService.getRegisteredUsers();
+        const users = await supabaseStorage.getRegisteredUsers();
         if (users.find(u => u.username === username)) {
             return false; // User already exists
         }
@@ -87,9 +96,11 @@ class AuthService {
             role,
             zone: role === 'rso' ? zone : undefined,
             isApproved: role !== 'rso', // RSO requires approval
+            points: 0,
+            adminPointsPool: role === 'admin' ? 10000 : 0,
         };
 
-        await storageService.saveRegisteredUser(newUser);
+        await supabaseStorage.saveRegisteredUser(newUser);
         return true;
     }
 
@@ -97,14 +108,14 @@ class AuthService {
      * Logout current user
      */
     async logout(): Promise<void> {
-        await storageService.removeUser();
+        await supabaseStorage.removeUser();
     }
 
     /**
      * Get current logged-in user
      */
     async getCurrentUser(): Promise<User | null> {
-        return await storageService.getUser();
+        return await supabaseStorage.getUser();
     }
 
     /**
@@ -122,6 +133,27 @@ class AuthService {
         const user = await this.getCurrentUser();
         return user?.role === role;
     }
+
+    /**
+     * Refresh user data from Supabase
+     * Useful for syncing points and other dynamic data
+     */
+    async refreshUserData(): Promise<User | null> {
+        const currentUser = await this.getCurrentUser();
+        if (!currentUser) return null;
+
+        const registeredUsers = await supabaseStorage.getRegisteredUsers();
+        const freshUser = registeredUsers.find(u => u.username === currentUser.username);
+
+        if (freshUser) {
+            const { password: _, ...userData } = freshUser;
+            const user = userData as User;
+            await supabaseStorage.saveUser(user);
+            return user;
+        }
+
+        return currentUser;
+    }
 }
 
-export default new AuthService();
+export default new SupabaseAuthService();

@@ -13,7 +13,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { UserRole } from '../types';
 import { COLORS, SUPPORTED_LANGUAGES } from '../constants';
-import authService from '../services/auth';
+import authService from '../services/supabaseAuth';
 import { changeLanguage } from '../i18n';
 
 interface LoginScreenProps {

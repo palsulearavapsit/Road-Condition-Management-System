@@ -48,23 +48,43 @@ export const truncateText = (text: string, maxLength: number): string => {
 
 /**
  * Calculate Road Health Index
- * Based on number of damages and their severity
+ * Based on number of damages, their severity, and completion status
+ * - Pending/In-Progress damages DECREASE health
+ * - Completed repairs INCREASE health
  */
 export const calculateRoadHealthIndex = (
     totalDamages: number,
-    severityDistribution: { low: number; medium: number; high: number }
+    severityDistribution: { low: number; medium: number; high: number },
+    completedRepairs?: number
 ): number => {
+    // Start with base health of 100
+    let healthIndex = 100;
+
     if (totalDamages === 0) return 100;
 
-    // Weight different severities
-    const weightedScore =
+    // Weight different severities (negative impact)
+    const weightedDamageScore =
         severityDistribution.low * 1 +
         severityDistribution.medium * 2 +
         severityDistribution.high * 3;
 
-    // Calculate health index (0-100, higher is better)
-    const maxPossibleScore = totalDamages * 3;
-    const healthIndex = Math.max(0, 100 - (weightedScore / maxPossibleScore) * 100);
+    // Calculate damage impact (reduces health)
+    const maxPossibleDamageScore = totalDamages * 3;
+    const damageImpact = (weightedDamageScore / maxPossibleDamageScore) * 100;
+
+    // Subtract damage impact
+    healthIndex -= damageImpact;
+
+    // Add bonus for completed repairs (positive impact)
+    if (completedRepairs && completedRepairs > 0) {
+        // Each completed repair adds back health
+        // More severe repairs that are completed add more health
+        const repairBonus = Math.min(30, completedRepairs * 5); // Cap at +30
+        healthIndex += repairBonus;
+    }
+
+    // Ensure health stays within 0-100 range
+    healthIndex = Math.max(0, Math.min(100, healthIndex));
 
     return Math.round(healthIndex);
 };

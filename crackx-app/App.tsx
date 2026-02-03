@@ -4,7 +4,7 @@ import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initI18n } from './src/i18n';
 import { COLORS } from './src/constants';
-import authService from './src/services/auth';
+import authService from './src/services/supabaseAuth';
 import locationService from './src/services/location';
 
 // Screens

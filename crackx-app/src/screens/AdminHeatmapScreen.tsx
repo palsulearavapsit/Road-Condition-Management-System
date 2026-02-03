@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
 import { Report } from '../types';
-import storageService from '../services/storage';
+import storageService from '../services/supabaseStorage';
 import DashboardLayout from '../components/DashboardLayout';
 import { MapComponent } from '../components/MapComponent';
 
@@ -27,7 +27,9 @@ export default function AdminHeatmapScreen({ onNavigate, onLogout }: AdminHeatma
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Since App.tsx unmounts screens on navigation, useEffect runs every time this screen opens.
     React.useEffect(() => {
+        console.log('[Heatmap] Screen mounted, loading data...');
         loadData();
     }, []);
 

@@ -7,13 +7,14 @@ import {
     ScrollView,
     Image,
     Platform,
+    TextInput,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
 import { Report } from '../types';
-import storageService from '../services/storage';
-import authService from '../services/auth';
+import storageService from '../services/supabaseStorage';
+import authService from '../services/supabaseAuth';
 import { formatDate, getSeverityColor } from '../utils';
 import DashboardLayout from '../components/DashboardLayout';
 
@@ -27,6 +28,7 @@ export default function MyReportsScreen({ onNavigate, onBack, onLogout }: MyRepo
     const { t } = useTranslation();
     const [reports, setReports] = useState<Report[]>([]);
     const [users, setUsers] = useState<any[]>([]);
+    const [feedbackText, setFeedbackText] = useState<{ [key: string]: string }>({});
 
     useEffect(() => {
         loadReports();
@@ -40,6 +42,15 @@ export default function MyReportsScreen({ onNavigate, onBack, onLogout }: MyRepo
                 setReports(userReports.sort((a, b) =>
                     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
                 ));
+
+                // Initialize feedback text from existing reports
+                const feedbackMap: { [key: string]: string } = {};
+                userReports.forEach(report => {
+                    if (report.citizenFeedback) {
+                        feedbackMap[report.id] = report.citizenFeedback;
+                    }
+                });
+                setFeedbackText(feedbackMap);
             }
 
             // Load all users to find RSO officers
@@ -52,13 +63,38 @@ export default function MyReportsScreen({ onNavigate, onBack, onLogout }: MyRepo
 
     const handleRateReport = async (report: Report, rating: number) => {
         try {
-            const updatedReport = { ...report, citizenRating: rating };
+            const updatedReport = {
+                ...report,
+                citizenRating: rating,
+                citizenFeedback: feedbackText[report.id] || ''
+            };
             await storageService.saveReport(updatedReport);
 
             // Update local state
             setReports(prev => prev.map(r => r.id === report.id ? updatedReport : r));
         } catch (error) {
             console.error('Failed to save rating:', error);
+        }
+    };
+
+    const handleFeedbackChange = (reportId: string, text: string) => {
+        setFeedbackText(prev => ({
+            ...prev,
+            [reportId]: text
+        }));
+    };
+
+    const handleSubmitFeedback = async (report: Report) => {
+        try {
+            const updatedReport = {
+                ...report,
+                citizenFeedback: feedbackText[report.id] || '',
+                citizenRating: report.citizenRating || 0
+            };
+            await storageService.saveReport(updatedReport);
+            setReports(prev => prev.map(r => r.id === report.id ? updatedReport : r));
+        } catch (error) {
+            console.error('Failed to save feedback:', error);
         }
     };
 
@@ -204,6 +240,8 @@ export default function MyReportsScreen({ onNavigate, onBack, onLogout }: MyRepo
                                     {/* Citizen Feedback Section */}
                                     <View style={styles.feedbackSection}>
                                         <Text style={styles.feedbackTitle}>Your Feedback:</Text>
+
+                                        {/* Star Rating */}
                                         <View style={styles.starsRow}>
                                             {[1, 2, 3, 4, 5].map((star) => (
                                                 <TouchableOpacity
@@ -220,10 +258,36 @@ export default function MyReportsScreen({ onNavigate, onBack, onLogout }: MyRepo
                                                 </TouchableOpacity>
                                             ))}
                                         </View>
-                                        {report.citizenRating ? (
-                                            <Text style={styles.startFeedbackText}>Thank you for your feedback!</Text>
+
+                                        {/* Text Feedback Input */}
+                                        <TextInput
+                                            style={[
+                                                styles.feedbackInput,
+                                                report.citizenFeedback && styles.feedbackInputDisabled
+                                            ]}
+                                            placeholder="Write your feedback about the repair work..."
+                                            placeholderTextColor={COLORS.gray}
+                                            multiline
+                                            numberOfLines={3}
+                                            value={feedbackText[report.id] || ''}
+                                            onChangeText={(text) => handleFeedbackChange(report.id, text)}
+                                            editable={!report.citizenFeedback}
+                                        />
+
+                                        {/* Submit Button (only show if not submitted) */}
+                                        {!report.citizenFeedback && feedbackText[report.id] && (
+                                            <TouchableOpacity
+                                                style={styles.submitFeedbackButton}
+                                                onPress={() => handleSubmitFeedback(report)}
+                                            >
+                                                <Text style={styles.submitFeedbackText}>Submit Feedback</Text>
+                                            </TouchableOpacity>
+                                        )}
+
+                                        {report.citizenRating || report.citizenFeedback ? (
+                                            <Text style={styles.startFeedbackText}>✓ Thank you for your feedback!</Text>
                                         ) : (
-                                            <Text style={styles.ratingHint}>Tap a star to rate the repair</Text>
+                                            <Text style={styles.ratingHint}>Rate and share your experience</Text>
                                         )}
                                     </View>
                                 </View>
@@ -548,5 +612,33 @@ const styles = StyleSheet.create({
         color: COLORS.gray,
         fontStyle: 'italic',
         marginTop: 4,
+    },
+    feedbackInput: {
+        backgroundColor: COLORS.white,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 14,
+        color: COLORS.dark,
+        marginTop: 12,
+        minHeight: 80,
+        textAlignVertical: 'top',
+    },
+    feedbackInputDisabled: {
+        backgroundColor: '#f9fafb',
+        color: COLORS.gray,
+    },
+    submitFeedbackButton: {
+        backgroundColor: COLORS.primary,
+        borderRadius: 8,
+        padding: 12,
+        alignItems: 'center',
+        marginTop: 12,
+    },
+    submitFeedbackText: {
+        color: COLORS.white,
+        fontSize: 14,
+        fontWeight: '600',
     },
 });

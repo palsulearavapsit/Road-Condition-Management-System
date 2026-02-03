@@ -10,8 +10,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../constants';
 import { Report } from '../types';
-import storageService from '../services/storage';
-import authService from '../services/auth';
+import storageService from '../services/supabaseStorage';
+import authService from '../services/supabaseAuth';
 import { formatDate, getSeverityColor } from '../utils';
 import DashboardLayout from '../components/DashboardLayout';
 
@@ -169,6 +169,14 @@ export default function AdminFeedbackScreen({ onNavigate, onLogout }: AdminFeedb
                                             />
                                         ))}
                                     </View>
+
+                                    {/* Text Feedback */}
+                                    {report.citizenFeedback && (
+                                        <View style={styles.textFeedbackContainer}>
+                                            <Text style={styles.feedbackLabel}>Citizen Comment:</Text>
+                                            <Text style={styles.feedbackText}>{report.citizenFeedback}</Text>
+                                        </View>
+                                    )}
 
                                     {/* Report Details */}
                                     <View style={styles.reportDetails}>
@@ -408,5 +416,25 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         borderWidth: 1,
         borderColor: COLORS.success,
+    },
+    textFeedbackContainer: {
+        backgroundColor: '#f9fafb',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 12,
+        borderLeftWidth: 3,
+        borderLeftColor: COLORS.primary,
+    },
+    feedbackLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: COLORS.gray,
+        marginBottom: 6,
+        textTransform: 'uppercase',
+    },
+    feedbackText: {
+        fontSize: 14,
+        color: COLORS.dark,
+        lineHeight: 20,
     },
 });

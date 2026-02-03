@@ -15,8 +15,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { COLORS, ZONES } from '../constants';
-import storageService from '../services/storage';
-import authService from '../services/auth';
+import storageService from '../services/supabaseStorage';
+import authService from '../services/supabaseAuth';
 import DashboardLayout from '../components/DashboardLayout';
 
 interface AdminUserManagementScreenProps {

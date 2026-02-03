@@ -13,8 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { COLORS, ZONES } from '../constants';
 import { Report } from '../types';
-import storageService from '../services/storage';
-import authService from '../services/auth';
+import storageService from '../services/supabaseStorage';
+import authService from '../services/supabaseAuth';
 import { calculateRoadHealthIndex, formatDate, getSeverityColor } from '../utils';
 import DashboardLayout from '../components/DashboardLayout';
 
@@ -50,6 +50,8 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
             const stats: any = {};
             ZONES.forEach(zone => {
                 const zoneReports = allReports.filter(r => r.location.zone === zone.id);
+                const completedCount = zoneReports.filter(r => r.status === 'completed').length;
+
                 const severityDist = {
                     low: zoneReports.filter(r => r.aiDetection?.severity === 'low').length,
                     medium: zoneReports.filter(r => r.aiDetection?.severity === 'medium').length,
@@ -59,9 +61,10 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
                 stats[zone.id] = {
                     total: zoneReports.length,
                     pending: zoneReports.filter(r => r.status === 'pending').length,
-                    completed: zoneReports.filter(r => r.status === 'completed').length,
+                    completed: completedCount,
                     severityDist,
-                    healthIndex: calculateRoadHealthIndex(zoneReports.length, severityDist),
+                    // Pass completed repairs to boost RHI
+                    healthIndex: calculateRoadHealthIndex(zoneReports.length, severityDist, completedCount),
                 };
             });
 
@@ -101,10 +104,14 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
         ? ZONES
         : ZONES.filter(z => z.id === filter);
 
-    // List Logic (Zone + Status)
-    const listedReports = filteredReports.filter(r =>
-        statusFilter === 'all' ? true : r.status === statusFilter
-    );
+    // List Logic (Zone + Status) - HARDENED
+    const listedReports = filteredReports.filter(r => {
+        if (statusFilter === 'all') return true;
+
+        // Normalize status for comparison
+        const normalizedStatus = (r.status || 'pending').toLowerCase().trim();
+        return normalizedStatus === statusFilter;
+    });
 
     return (
         <DashboardLayout
@@ -180,16 +187,25 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
                     </ScrollView>
                 </View>
 
-                {/* Overall Stats (Interactive) */}
+                {/* Overall Stats (Interactive - Click to Filter) */}
                 <View style={styles.statsCard}>
-                    <Text style={styles.cardTitle}>
-                        {filter === 'all' ? 'Overall Statistics' : `Statistics: ${filter.toUpperCase()}`}
-                    </Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                        <Text style={styles.cardTitle}>
+                            {filter === 'all' ? 'Overall Statistics' : `Statistics: ${filter.toUpperCase()}`}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: COLORS.gray, fontStyle: 'italic' }}>
+                            Tap to filter ↓
+                        </Text>
+                    </View>
                     <View style={styles.statsRow}>
                         <TouchableOpacity
                             style={[styles.statItem, statusFilter === 'all' && styles.statItemActive]}
                             onPress={() => setStatusFilter('all')}
+                            activeOpacity={0.7}
                         >
+                            <View style={[styles.statIconBadge, { backgroundColor: '#f1f5f9' }]}>
+                                <Ionicons name="document-text" size={20} color={COLORS.dark} />
+                            </View>
                             <Text style={styles.statValue}>{displayedStats.total}</Text>
                             <Text style={[styles.statLabel, statusFilter === 'all' && styles.statLabelActive]}>{t('total_reports')}</Text>
                         </TouchableOpacity>
@@ -197,7 +213,11 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
                         <TouchableOpacity
                             style={[styles.statItem, statusFilter === 'pending' && styles.statItemActive]}
                             onPress={() => setStatusFilter('pending')}
+                            activeOpacity={0.7}
                         >
+                            <View style={[styles.statIconBadge, { backgroundColor: '#fff7ed' }]}>
+                                <Ionicons name="time" size={20} color={COLORS.warning} />
+                            </View>
                             <Text style={[styles.statValue, { color: COLORS.warning }]}>
                                 {displayedStats.pending}
                             </Text>
@@ -207,7 +227,11 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
                         <TouchableOpacity
                             style={[styles.statItem, statusFilter === 'completed' && styles.statItemActive]}
                             onPress={() => setStatusFilter('completed')}
+                            activeOpacity={0.7}
                         >
+                            <View style={[styles.statIconBadge, { backgroundColor: '#f0fdf4' }]}>
+                                <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+                            </View>
                             <Text style={[styles.statValue, { color: COLORS.success }]}>
                                 {displayedStats.completed}
                             </Text>
@@ -228,6 +252,9 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
                     ) : (
                         listedReports.map(report => (
                             <View key={report.id} style={styles.reportCard}>
+                                {/* DEBUG LINE - REMOVE LATER */}
+                                {/* <Text style={{fontSize: 10, color: 'red'}}>Status: {JSON.stringify(report.status)}</Text> */}
+
                                 <View style={styles.reportHeader}>
                                     <View>
                                         <Text style={styles.reportType}>{report.aiDetection?.damageType || 'Unknown'}</Text>
@@ -238,12 +265,12 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
                                     </View>
                                 </View>
                                 {/* Photo Thumbnail */}
-                                {report.photoUri && (
-                                    <View style={styles.imageContainer}>
-                                        {Platform.OS === 'web' && report.photoUri.startsWith('file://') ? (
-                                            <View style={{ alignItems: 'center', justifyContent: 'center', height: 150, backgroundColor: '#e2e8f0', borderRadius: 8 }}>
-                                                <Ionicons name="phone-portrait-outline" size={32} color={COLORS.gray} />
-                                                <Text style={{ fontSize: 10, color: COLORS.gray, marginTop: 4 }}>Image only available on Mobile</Text>
+                                <View style={styles.imageContainer}>
+                                    {report.photoUri ? (
+                                        (Platform.OS === 'web' && report.photoUri.startsWith('file://')) ? (
+                                            <View style={styles.placeholderContainer}>
+                                                <Ionicons name="image-outline" size={32} color={COLORS.gray} />
+                                                <Text style={styles.placeholderText}>Image stored locally (Legacy)</Text>
                                             </View>
                                         ) : (
                                             <Image
@@ -251,20 +278,27 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
                                                 style={styles.reportImage}
                                                 resizeMode="cover"
                                             />
-                                        )}
-                                    </View>
-                                )}
-                                {/* Repair Proof */}
-                                {report.repairProofUri && (
+                                        )
+                                    ) : (
+                                        <View style={styles.placeholderContainer}>
+                                            <Ionicons name="image-outline" size={32} color={COLORS.gray} />
+                                            <Text style={styles.placeholderText}>No Image Available</Text>
+                                        </View>
+                                    )}
+                                </View>
+
+                                {/* Repair Proof (Only for Completed Reports) */}
+                                {report.status === 'completed' && report.repairProofUri && (
                                     <View style={styles.repairSection}>
                                         <View style={styles.repairHeader}>
                                             <Text style={styles.repairTitle}>✅ Repair Proof</Text>
                                             <Text style={styles.repairDate}>{formatDate(report.repairCompletedAt || report.updatedAt)}</Text>
                                         </View>
-                                        {Platform.OS === 'web' && report.repairProofUri.startsWith('file://') ? (
-                                            <View style={{ alignItems: 'center', justifyContent: 'center', height: 100, backgroundColor: '#e2e8f0', borderRadius: 8 }}>
-                                                <Ionicons name="phone-portrait-outline" size={32} color={COLORS.gray} />
-                                                <Text style={{ fontSize: 10, color: COLORS.gray, marginTop: 4 }}>Image only available on Mobile</Text>
+
+                                        {(Platform.OS === 'web' && report.repairProofUri.startsWith('file://')) ? (
+                                            <View style={[styles.placeholderContainer, { height: 150, backgroundColor: '#f0fdf4', borderColor: COLORS.success, borderWidth: 1 }]}>
+                                                <Ionicons name="phone-portrait-outline" size={32} color={COLORS.success} />
+                                                <Text style={[styles.placeholderText, { color: COLORS.success }]}>Proof stored locally (Legacy)</Text>
                                             </View>
                                         ) : (
                                             <Image
@@ -273,6 +307,7 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
                                                 resizeMode="cover"
                                             />
                                         )}
+
                                         {/* Materials Used (Optional) */}
                                         {report.materialsUsed && report.materialsUsed.length > 0 && (
                                             <View style={{ marginTop: 8 }}>
@@ -412,6 +447,18 @@ const styles = StyleSheet.create({
     },
     statItem: {
         alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 12,
+        minWidth: 90,
+    },
+    statIconBadge: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 8,
     },
     statValue: {
         fontSize: 32,
@@ -423,6 +470,20 @@ const styles = StyleSheet.create({
         color: COLORS.gray,
         marginTop: 4,
         fontWeight: '500',
+    },
+    statItemActive: {
+        backgroundColor: '#f8fafc',
+        borderWidth: 2,
+        borderColor: COLORS.primary,
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    statLabelActive: {
+        fontWeight: 'bold',
+        color: COLORS.primary,
     },
     section: {
         padding: 16,
@@ -605,19 +666,7 @@ const styles = StyleSheet.create({
     filterTextActive: {
         color: COLORS.white,
     },
-    statItemActive: {
-        backgroundColor: '#f8fafc',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    statLabelActive: {
-        fontWeight: 'bold',
-        color: COLORS.primary,
-        textDecorationLine: 'underline',
-    },
+
     // Report Card Styles
     emptyState: {
         alignItems: 'center',
@@ -723,5 +772,22 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         borderWidth: 1,
         borderColor: COLORS.success,
+    },
+    placeholderContainer: {
+        width: '100%',
+        height: 150,
+        backgroundColor: '#f1f5f9',
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderStyle: 'dashed',
+    },
+    placeholderText: {
+        fontSize: 12,
+        color: COLORS.gray,
+        marginTop: 8,
+        fontWeight: '500',
     },
 });

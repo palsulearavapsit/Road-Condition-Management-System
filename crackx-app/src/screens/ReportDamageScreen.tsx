@@ -18,8 +18,9 @@ import { COLORS, ZONES } from '../constants';
 import { ReportingMode, Report, Location as LocationType } from '../types';
 import locationService from '../services/location';
 import aiService from '../services/ai';
-import storageService from '../services/storage';
-import authService from '../services/auth';
+import storageService from '../services/supabaseStorage';
+import authService from '../services/supabaseAuth';
+import { uploadImageToSupabase } from '../services/imageUpload';
 import { generateId } from '../utils';
 import { MapComponent } from '../components/MapComponent';
 import DashboardLayout from '../components/DashboardLayout';
@@ -41,6 +42,7 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
     const [isEditingAddress, setIsEditingAddress] = useState(false);
     const [aiResult, setAiResult] = useState<any>(null);
     const [loading, setLoading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState('');
 
     const handleModeSelect = (mode: ReportingMode) => {
         setReportingMode(mode);
@@ -153,6 +155,14 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                 return;
             }
 
+            // Generate report ID first
+            const reportId = generateId();
+
+            // Upload image to Supabase Storage
+            setUploadProgress('Uploading image to cloud...');
+            const cloudPhotoUrl = await uploadImageToSupabase(photoUri, 'damage-photos', reportId);
+            console.log('✅ Image uploaded:', cloudPhotoUrl);
+
             // Ensure we have a valid zone. If missing, try auto-detect.
             let finalZone = location?.zone;
             if (!finalZone && (location?.latitude || manualAddress)) {
@@ -176,28 +186,31 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                 zone: finalZone || 'zone1',
             };
 
+            setUploadProgress('Saving report...');
             const report: Report = {
-                id: generateId(),
+                id: reportId,
                 citizenId: user.id,
                 reportingMode,
                 location: finalLocation,
-                photoUri,
+                photoUri: cloudPhotoUrl, // Use Supabase URL instead of local URI
                 aiDetection: aiResult,
                 status: 'pending',
-                syncStatus: 'pending',
+                syncStatus: 'synced', // Already in cloud
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             };
 
             await storageService.saveReport(report);
-            await storageService.addToSyncQueue(report.id);
 
+            setUploadProgress('');
             Alert.alert(t('success'), t('report_submitted'));
             onSuccess();
         } catch (error) {
+            console.error('Submit error:', error);
             Alert.alert(t('error'), 'Failed to submit report');
         } finally {
             setLoading(false);
+            setUploadProgress('');
         }
     };
 
@@ -490,6 +503,14 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                             </View>
                         </View>
 
+                        {/* Upload Progress Indicator */}
+                        {uploadProgress && (
+                            <View style={styles.progressContainer}>
+                                <ActivityIndicator size="small" color={COLORS.primary} />
+                                <Text style={styles.progressText}>{uploadProgress}</Text>
+                            </View>
+                        )}
+
                         <TouchableOpacity
                             style={[styles.button, loading && styles.buttonDisabled]}
                             onPress={handleSubmit}
@@ -664,5 +685,22 @@ const styles = StyleSheet.create({
         color: COLORS.white,
         fontSize: 16,
         fontWeight: 'bold',
+    },
+    progressContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+        marginBottom: 12,
+        backgroundColor: '#f0f9ff',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: COLORS.primary,
+    },
+    progressText: {
+        marginLeft: 12,
+        fontSize: 14,
+        color: COLORS.primary,
+        fontWeight: '600',
     },
 });

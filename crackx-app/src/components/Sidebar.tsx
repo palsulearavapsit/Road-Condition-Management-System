@@ -33,7 +33,6 @@ export default function Sidebar({ role, activeRoute, onNavigate, onLogout, onClo
                     { id: 'Dashboard', label: t('dashboard'), icon: '🏠' },
                     { id: 'ReportDamage', label: t('report_damage'), icon: '📸' },
                     { id: 'MyReports', label: t('my_reports'), icon: '📄' },
-                    { id: 'Sync', label: t('sync_reports'), icon: '🔄' },
                 ];
             case 'rso':
                 return [

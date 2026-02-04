@@ -77,6 +77,10 @@
       "expo-font"
     ],
     "owner": "aravpalsule",
-    "extra": {}
+    "extra": {
+      "eas": {
+        "projectId": "5f7228b3-89f8-4407-9730-ec8d339bb1ee"
+      }
+    }
   }
 }

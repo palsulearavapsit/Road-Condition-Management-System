@@ -14,6 +14,8 @@ class SupabaseStorageService {
 
     constructor() {
         this.checkConnection();
+        // Initialize notification service
+        notificationService.setSupabase(supabase);
     }
 
     private async checkConnection(): Promise<void> {
@@ -275,6 +277,51 @@ class SupabaseStorageService {
             }
 
             console.log(`[Supabase] Report ${report.id} saved successfully with status: ${report.status}`);
+
+            // TRIGGER NOTIFICATIONS
+            try {
+                if (report.status === 'pending') {
+                    // Notify Zone RSO and Admins about NEW report
+                    const zone = report.location.zone;
+                    const coords = `@ ${report.location.latitude.toFixed(4)}, ${report.location.longitude.toFixed(4)}`;
+                    const road = report.location.roadName || 'Unknown Road';
+
+                    if (zone) {
+                        await notificationService.notifyZoneRSOs(
+                            zone,
+                            "New Complaint Assigned 🚨",
+                            `New ${report.aiDetection?.damageType || 'damage'} reported at ${road} (${coords})`,
+                            {
+                                reportId: report.id,
+                                latitude: report.location.latitude,
+                                longitude: report.location.longitude
+                            }
+                        );
+                    }
+
+                    await notificationService.notifyAdmins(
+                        "New Citizen Report 📑",
+                        `A new report has been submitted in ${zone || 'Unknown Area'} at ${road}`,
+                        { reportId: report.id }
+                    );
+                } else if (report.status === 'completed') {
+                    // Notify Citizen and Admins about COMPLETED repair
+                    await notificationService.createInAppNotification(
+                        report.citizenId,
+                        "Repair Complete! ✅",
+                        `Your reported road issue at ${report.location.roadName || 'the site'} has been fixed by RSO.`,
+                        { reportId: report.id, type: 'completion' }
+                    );
+
+                    await notificationService.notifyAdmins(
+                        "Repair Solved 🛠️",
+                        `RSO has uploaded a solution for report #${report.id.slice(-6).toUpperCase()}`,
+                        { reportId: report.id }
+                    );
+                }
+            } catch (notifError) {
+                console.error('[Supabase] Notification trigger failed:', notifError);
+            }
 
             // Update local cache
             const reports = await this.getLocalReports();

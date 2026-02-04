@@ -9,6 +9,16 @@ import * as Device from 'expo-device';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Report } from '../types';
 
+export interface AppNotification {
+    id: string;
+    user_id: string;
+    title: string;
+    body: string;
+    data?: any;
+    read: boolean;
+    created_at: string;
+}
+
 export interface PushNotification {
     id: string;
     title: string;
@@ -22,9 +32,14 @@ class NotificationService {
     private readonly STORAGE_KEY = '@crackx_notifications';
     private readonly TOKEN_KEY = '@crackx_push_token';
     private expoPushToken: string | null = null;
+    private supabase: any = null;
 
     constructor() {
         this.configureNotifications();
+    }
+
+    setSupabase(client: any) {
+        this.supabase = client;
     }
 
     private configureNotifications() {
@@ -160,6 +175,107 @@ class NotificationService {
     /**
      * Notify when report status changes
      */
+    /**
+     * Create In-App Notification in Supabase
+     */
+    async createInAppNotification(userId: string, title: string, body: string, data: any = {}) {
+        if (!this.supabase) {
+            console.error('[NotificationService] Supabase client not set');
+            return;
+        }
+
+        try {
+            const { error } = await this.supabase
+                .from('notifications')
+                .insert({
+                    user_id: userId,
+                    title,
+                    body,
+                    data,
+                    read: false,
+                    created_at: new Date().toISOString()
+                });
+
+            if (error) throw error;
+            console.log(`[NotificationService] Created notification for user ${userId}`);
+        } catch (error) {
+            console.error('[NotificationService] Error creating notification:', error);
+        }
+    }
+
+    /**
+     * Create notification for all admins
+     */
+    async notifyAdmins(title: string, body: string, data: any = {}) {
+        if (!this.supabase) return;
+        try {
+            const { data: admins } = await this.supabase
+                .from('users')
+                .select('id')
+                .eq('role', 'admin');
+
+            if (admins) {
+                for (const admin of admins) {
+                    await this.createInAppNotification(admin.id, title, body, data);
+                }
+            }
+        } catch (error) {
+            console.error('[NotificationService] Error notifying admins:', error);
+        }
+    }
+
+    /**
+     * Create notification for a specific RSO zone
+     */
+    async notifyZoneRSOs(zone: string, title: string, body: string, data: any = {}) {
+        if (!this.supabase) return;
+        try {
+            const { data: rsos } = await this.supabase
+                .from('users')
+                .select('id')
+                .eq('role', 'rso')
+                .eq('zone', zone);
+
+            if (rsos) {
+                for (const rso of rsos) {
+                    await this.createInAppNotification(rso.id, title, body, data);
+                }
+            }
+        } catch (error) {
+            console.error('[NotificationService] Error notifying zone RSOs:', error);
+        }
+    }
+
+    async getInAppNotifications(userId: string): Promise<AppNotification[]> {
+        if (!this.supabase) return [];
+        try {
+            const { data, error } = await this.supabase
+                .from('notifications')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('[NotificationService] Error fetching notifications:', error);
+            return [];
+        }
+    }
+
+    async markInAppRead(notificationId: string) {
+        if (!this.supabase) return;
+        try {
+            await this.supabase
+                .from('notifications')
+                .update({ read: true })
+                .eq('id', notificationId);
+        } catch (error) {
+            console.error('[NotificationService] Error marking read:', error);
+        }
+    }
+
     async notifyStatusChange(reportId: string, newStatus: string): Promise<void> {
         const statusMessages: Record<string, { title: string; body: string }> = {
             pending: {

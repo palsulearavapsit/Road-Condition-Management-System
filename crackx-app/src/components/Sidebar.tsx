@@ -33,11 +33,13 @@ export default function Sidebar({ role, activeRoute, onNavigate, onLogout, onClo
                     { id: 'Dashboard', label: t('dashboard'), icon: '🏠' },
                     { id: 'ReportDamage', label: t('report_damage'), icon: '📸' },
                     { id: 'MyReports', label: t('my_reports'), icon: '📄' },
+                    { id: 'Notifications', label: 'Notifications', icon: '🔔' },
                 ];
             case 'rso':
                 return [
                     { id: 'Assigned', label: 'Assigned Zone Feed', icon: '📍' },
                     { id: 'VendorPortal', label: 'Material & Inventory', icon: '📦' },
+                    { id: 'Notifications', label: 'Notifications', icon: '🔔' },
                 ];
             case 'admin':
                 return [
@@ -46,6 +48,7 @@ export default function Sidebar({ role, activeRoute, onNavigate, onLogout, onClo
                     { id: 'Feedback', label: 'Citizen Feedback', icon: '⭐' },
                     { id: 'Points', label: 'Points Management', icon: '💎' },
                     { id: 'UserManagement', label: t('user_management'), icon: '👥' },
+                    { id: 'Notifications', label: 'Notifications', icon: '🔔' },
                 ];
             default:
                 return [];

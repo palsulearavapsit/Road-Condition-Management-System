@@ -2,7 +2,7 @@
   "expo": {
     "name": "CrackX",
     "slug": "crackx-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -39,7 +39,7 @@
       "predictiveBackGestureEnabled": false,
       "enableDangerousExperimentalLeanBuilds": true,
       "bundleIdentifier": "com.crackx.app",
-      "versionCode": 1
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -77,10 +77,6 @@
       "expo-font"
     ],
     "owner": "aravpalsule",
-    "extra": {
-      "eas": {
-        "projectId": "54a8f695-a7b0-41a4-94f3-533489fd449a"
-      }
-    }
+    "extra": {}
   }
 }

@@ -9,7 +9,6 @@ export const DEMO_CREDENTIALS = {
 // Hardcoded Permanent Demo Users (Master Fallbacks)
 export const HARDCODED_DEMO_USERS: Record<string, any> = {
     'admin': { id: 'admin_master', username: 'admin', password: 'admin123', role: 'admin', adminPointsPool: 100000 },
-    'harsh': { id: 'admin_harsh', username: 'harsh', password: 'harsh', role: 'admin', isApproved: true, adminPointsPool: 10000 },
     'rugved': { id: 'rso_rugved', username: 'rugved', password: 'rugved', role: 'rso', zone: 'zone1', isApproved: true, points: 0 },
     'deep': { id: 'rso_deep', username: 'deep', password: 'deep', role: 'rso', zone: 'zone4', isApproved: true, points: 0 },
     'atharva': { id: 'rso_atharva', username: 'atharva', password: 'atharva', role: 'rso', zone: 'zone8', isApproved: true, points: 0 },

@@ -13,6 +13,7 @@ import {
 import Sidebar from './Sidebar';
 import { COLORS } from '../constants';
 import { UserRole } from '../types';
+import realtimeListener from '../services/realtimeListener';
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
@@ -36,6 +37,14 @@ export default function DashboardLayout({
     const [isSidebarVisible, setSidebarVisible] = useState(false);
 
     const toggleSidebar = () => setSidebarVisible(!isSidebarVisible);
+
+    React.useEffect(() => {
+        // Start listening for realtime events (notifications)
+        realtimeListener.startListening();
+        return () => {
+            realtimeListener.stopListening();
+        };
+    }, []);
 
     return (
         <SafeAreaView style={styles.container}>

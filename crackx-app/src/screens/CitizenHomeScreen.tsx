@@ -8,6 +8,7 @@ import {
     Alert,
     Platform,
     Image,
+    RefreshControl,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,19 +28,24 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
     const [reports, setReports] = useState<Report[]>([]);
     const [user, setUser] = useState<User | null>(null);
     const [users, setUsers] = useState<User[]>([]);
+    const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
         loadData();
     }, []);
 
-    const loadData = async () => {
+    const loadData = async (isRefreshing = false) => {
         try {
+            if (isRefreshing) setRefreshing(true);
+
             // Refresh user data (points) from server
-            const user = await authService.refreshUserData();
-            if (user) {
-                setUser(user);
-                const userReports = await storageService.getReportsByCitizen(user.id);
-                setReports(userReports);
+            const freshUser = await authService.refreshUserData();
+            if (freshUser) {
+                setUser(freshUser);
+                const userReports = await storageService.getReportsByCitizen(freshUser.id);
+                setReports(userReports.sort((a, b) =>
+                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                ));
             }
 
             // Load all users to find RSO officers for display
@@ -47,10 +53,10 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
             setUsers(allUsers);
         } catch (error) {
             console.error('Error loading data:', error);
+        } finally {
+            setRefreshing(false);
         }
     };
-
-
 
     const handleLogout = async () => {
         await authService.logout();
@@ -66,13 +72,28 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
             onLogout={handleLogout}
         >
             <View style={styles.walletBar}>
-                <View style={styles.pointsBadge}>
+                <TouchableOpacity
+                    style={styles.pointsBadge}
+                    onPress={() => loadData(true)}
+                >
                     <Ionicons name="star" size={16} color="#f59e0b" />
                     <Text style={styles.pointsText}>{user?.points || 0} Points</Text>
-                </View>
+                    <Ionicons name="refresh-outline" size={12} color="#b45309" style={{ marginLeft: 8 }} />
+                </TouchableOpacity>
                 <Text style={styles.welcomeText}>Welcome, {user?.username}!</Text>
             </View>
-            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+
+            <ScrollView
+                style={styles.content}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={() => loadData(true)}
+                        colors={[COLORS.primary]}
+                    />
+                }
+            >
                 {/* Quick Actions Grid */}
                 <View style={styles.gridContainer}>
                     <TouchableOpacity

@@ -152,6 +152,7 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
             const user = await authService.getCurrentUser();
             if (!user) {
                 Alert.alert(t('error'), 'User not found');
+                setLoading(false);
                 return;
             }
 
@@ -160,6 +161,7 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
 
             // Upload image to Supabase Storage
             setUploadProgress('Uploading image to cloud...');
+            console.log('📤 Starting image upload...');
             const cloudPhotoUrl = await uploadImageToSupabase(photoUri, 'damage-photos', reportId);
             console.log('✅ Image uploaded:', cloudPhotoUrl);
 
@@ -186,7 +188,8 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                 zone: finalZone || 'zone1',
             };
 
-            setUploadProgress('Saving report...');
+            setUploadProgress('Saving report to database...');
+            console.log('💾 Saving report to database...');
             const report: Report = {
                 id: reportId,
                 citizenId: user.id,
@@ -201,13 +204,20 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
             };
 
             await storageService.saveReport(report);
+            console.log('✅ Report saved successfully!');
 
             setUploadProgress('');
             Alert.alert(t('success'), t('report_submitted'));
             onSuccess();
-        } catch (error) {
-            console.error('Submit error:', error);
-            Alert.alert(t('error'), 'Failed to submit report');
+        } catch (error: any) {
+            console.error('❌ Submit error:', error);
+
+            // Show detailed error message
+            const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+            Alert.alert(
+                t('error'),
+                `Failed to submit report:\n\n${errorMessage}\n\nPlease check your internet connection and try again.`
+            );
         } finally {
             setLoading(false);
             setUploadProgress('');

@@ -15,25 +15,53 @@ export const uploadImageToSupabase = async (
     try {
         // Generate unique filename
         const timestamp = Date.now();
-        const fileExt = uri.split('.').pop() || 'jpg';
+
+        // Fix: Detect extension correctly for both data URLs and normal URIs
+        let fileExt = 'jpg';
+        if (uri.startsWith('data:')) {
+            const mime = uri.match(/:(.*?);/)?.[1];
+            fileExt = mime ? mime.split('/')[1] : 'jpg';
+        } else {
+            fileExt = uri.split('.').pop()?.split('?')[0] || 'jpg';
+        }
+
         const fileName = `${reportId}_${timestamp}.${fileExt}`;
         const filePath = `${folder}/${fileName}`;
 
-        // Convert URI to blob for upload
-        const response = await fetch(uri);
-        const blob = await response.blob();
+        let blob: Blob;
+
+        // MANUALLY convert base64 to Blob to bypass ANY "fetch" based CORS issues
+        if (uri.startsWith('data:')) {
+            console.log('🔄 Converting base64 to Blob manually...');
+            const parts = uri.split(',');
+            const mimeMatch = parts[0].match(/:(.*?);/);
+            const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+            const bstr = atob(parts[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            blob = new Blob([u8arr], { type: mime });
+        } else {
+            // For regular URLs, try a standard fetch
+            const response = await fetch(uri);
+            blob = await response.blob();
+        }
+
+        console.log(`📦 Prepared Blob: ${blob.type} (${(blob.size / 1024).toFixed(1)} KB)`);
 
         // Upload to Supabase Storage
         const { data, error } = await supabase.storage
             .from('report-images')
             .upload(filePath, blob, {
-                contentType: `image/${fileExt}`,
+                contentType: blob.type || `image/${fileExt}`,
                 cacheControl: '3600',
                 upsert: false,
             });
 
         if (error) {
-            console.error('Supabase upload error:', error);
+            console.error('❌ Supabase Storage Error:', error);
             throw error;
         }
 
@@ -46,11 +74,11 @@ export const uploadImageToSupabase = async (
             throw new Error('Failed to get public URL');
         }
 
-        console.log('✅ Image uploaded to Supabase:', urlData.publicUrl);
+        console.log('✅ Image uploaded successfully:', urlData.publicUrl);
         return urlData.publicUrl;
-    } catch (error) {
-        console.error('Failed to upload image to Supabase:', error);
-        throw error; // Fail hard so we don't save invalid local URIs
+    } catch (error: any) {
+        console.error('❌ Upload Failed:', error.message || error);
+        throw error;
     }
 };
 

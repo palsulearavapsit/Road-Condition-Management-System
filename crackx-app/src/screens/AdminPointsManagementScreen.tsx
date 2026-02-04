@@ -12,6 +12,7 @@ import {
     LayoutAnimation,
     UIManager,
     Platform,
+    RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -33,9 +34,8 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
     const [users, setUsers] = useState<User[]>([]);
     const [adminUser, setAdminUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState<'pending' | 'users'>('pending');
-
-
 
     useEffect(() => {
         if (Platform.OS === 'android') {
@@ -46,8 +46,11 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
         loadData();
     }, []);
 
-    const loadData = async () => {
+    const loadData = async (isRefreshing = false) => {
         try {
+            if (isRefreshing) setRefreshing(true);
+            else setLoading(true);
+
             // Seed Demo Users if missing to ensure points system works
             const currentUsers = await storageService.getRegisteredUsers();
             const DEMO_USERS = [
@@ -71,11 +74,9 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
             ]);
 
             // IMPORTANT: Sync current user with registered users list
-            // This ensures admin pool and points are always up-to-date
             if (current) {
                 const updatedCurrentUser = allUsers.find(u => u.username === current.username);
                 if (updatedCurrentUser) {
-                    // Update the current user with latest data from registered users
                     const syncedUser = {
                         ...current,
                         points: updatedCurrentUser.points !== undefined ? updatedCurrentUser.points : current.points,
@@ -94,6 +95,7 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
             console.error(error);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
@@ -106,7 +108,6 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
         // --- Optimistic UI Update ---
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
-        // Calculate new values
         const targetUser = users.find(u => u.id === userId || u.username === userId);
         if (!targetUser) {
             Alert.alert('Error', 'User not found');
@@ -139,15 +140,13 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
             }
             return r;
         }));
-        // -----------------------------
 
         try {
-            // Save to backend (in background)
+            // Save to backend
             await storageService.updateRegisteredUser(targetUser.username, { points: newUserPoints });
             await storageService.updateRegisteredUser(adminUser.username, { adminPointsPool: newAdminPool });
             await storageService.saveUser(updatedAdmin);
 
-            // Mark report as awarded
             const reportIndex = reports.findIndex(r => r.id === reportId);
             if (reportIndex >= 0) {
                 const updatedReport = { ...reports[reportIndex] };
@@ -156,22 +155,21 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
                 await storageService.saveReport(updatedReport);
             }
 
+            // Background sync to ensure full consistency
+            setTimeout(() => loadData(false), 500);
+
         } catch (error) {
             console.error(error);
             Alert.alert('Error', 'Failed to save points. Please try again.');
-            // Revert on error
             loadData();
         }
     };
 
     const disapprovePoints = async (reportId: string, type: 'report' | 'repair') => {
-        // --- Optimistic UI Update ---
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
-        // Mark locally as processed immediately
         setReports(prev => prev.map(r => {
             if (r.id === reportId) {
-                // If we return a new object with ApprovedForPoints=true, it gets filtered out of 'pendingPoints'
                 return {
                     ...r,
                     reportApprovedForPoints: type === 'report' ? true : r.reportApprovedForPoints,
@@ -180,7 +178,6 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
             }
             return r;
         }));
-        // -----------------------------
 
         try {
             const reportIndex = reports.findIndex(r => r.id === reportId);
@@ -190,11 +187,9 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
                 if (type === 'repair') updatedReport.repairApprovedForPoints = true;
                 await storageService.saveReport(updatedReport);
             }
-            // Refresh data from backend
             await loadData();
         } catch (error) {
             console.error('Disapprove failed', error);
-            // Revert state if backend save fails
             loadData();
         }
     };
@@ -203,8 +198,6 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
         (r.status === 'pending' && !r.reportApprovedForPoints) ||
         (r.status === 'completed' && !r.repairApprovedForPoints)
     );
-
-
 
     return (
         <DashboardLayout
@@ -215,7 +208,6 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
             onLogout={onLogout}
         >
             <View style={styles.container}>
-                {/* Admin Wallet Info */}
                 <View style={styles.adminWallet}>
                     <View style={styles.walletMain}>
                         <View style={styles.walletInfo}>
@@ -244,7 +236,6 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
                     <Text style={styles.walletSubtext}>Remaining points available for distribution</Text>
                 </View>
 
-                {/* Tabs */}
                 <View style={styles.tabContainer}>
                     <TouchableOpacity
                         style={[styles.tab, activeTab === 'pending' && styles.activeTab]}
@@ -261,10 +252,19 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
                     </TouchableOpacity>
                 </View>
 
-                {loading ? (
+                {loading && !refreshing ? (
                     <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
                 ) : (
-                    <ScrollView style={styles.content}>
+                    <ScrollView
+                        style={styles.content}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={refreshing}
+                                onRefresh={() => loadData(true)}
+                                colors={[COLORS.primary]}
+                            />
+                        }
+                    >
                         {activeTab === 'pending' ? (
                             pendingPoints.length === 0 ? (
                                 <View style={styles.emptyState}>
@@ -272,7 +272,7 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
                                     <Text style={styles.emptyText}>All point requests settled!</Text>
                                 </View>
                             ) : (
-                                pendingPoints.map(report => (
+                                [...pendingPoints].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(report => (
                                     <View key={report.id} style={styles.approvalCard}>
                                         <View style={styles.cardHeader}>
                                             <Text style={styles.reportId}>#{report.id.slice(-6).toUpperCase()}</Text>
@@ -284,16 +284,13 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
                                             <Text style={styles.cardUser}>
                                                 {(() => {
                                                     const u = users.find(user => user.id === report.citizenId || user.username === report.citizenId);
-                                                    if (u && !u.username.startsWith('user_')) return u.username;
-                                                    // Mapping auto-generated IDs to friendly names for demo
-                                                    const hash = report.citizenId.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0);
-                                                    return Math.abs(hash) % 2 === 0 ? 'Arav' : 'Abbas';
+                                                    if (u) return u.username;
+                                                    return 'Citizen';
                                                 })()}
                                             </Text>
                                             <Text style={styles.cardDate}>{formatDate(report.createdAt)}</Text>
                                         </View>
 
-                                        {/* Zone and RSO Officer Info */}
                                         {report.location?.zone && (
                                             <View style={styles.zoneInfoContainer}>
                                                 <View style={styles.zoneInfo}>
@@ -343,21 +340,12 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
                                                     <TouchableOpacity
                                                         style={[styles.awardButton, { backgroundColor: COLORS.success }]}
                                                         onPress={() => {
-                                                            let targetId = report.rsoId;
-
-                                                            // Fallback: Try to find RSO by zone if rsoId is missing
-                                                            if (!targetId && report.location.zone) {
-                                                                const zoneRso = users.find(u => u.role === 'rso' && u.zone === report.location.zone);
-                                                                if (zoneRso) targetId = zoneRso.username;
-                                                            }
-
-                                                            if (!targetId) {
-                                                                Alert.alert('Error', 'Could not identify the RSO who completed this repair.');
+                                                            const citizenId = report.citizenId;
+                                                            if (!citizenId) {
+                                                                Alert.alert('Error', 'Could not identify the citizen who reported this.');
                                                                 return;
                                                             }
-
-                                                            // RSO gets 0 points as per new rule, just verification
-                                                            awardPoints(report.id, targetId, 0, 'repair');
+                                                            awardPoints(report.id, citizenId, 20, 'repair');
                                                         }}
                                                     >
                                                         <Ionicons name="checkmark-circle" size={18} color={COLORS.white} style={{ marginRight: 6 }} />
@@ -405,8 +393,6 @@ export default function AdminPointsManagementScreen({ onNavigate, onLogout }: Ad
                     </ScrollView>
                 )}
             </View>
-
-
         </DashboardLayout>
     );
 }
@@ -680,103 +666,5 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '600',
         marginLeft: 4,
-    },
-    // Modal Styles
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 24,
-    },
-    modalContent: {
-        backgroundColor: COLORS.white,
-        borderRadius: 24,
-        padding: 24,
-        width: '100%',
-        maxWidth: 360,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.25,
-        shadowRadius: 20,
-        elevation: 10,
-    },
-    modalHeader: {
-        alignItems: 'center',
-        marginBottom: 24,
-    },
-    modalIconBg: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: '#fffbeb',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-        borderWidth: 4,
-        borderColor: '#fef3c7',
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: COLORS.dark,
-        marginBottom: 8,
-    },
-    modalSubtitle: {
-        fontSize: 14,
-        color: COLORS.gray,
-        textAlign: 'center',
-        lineHeight: 20,
-    },
-    inputContainer: {
-        marginBottom: 24,
-    },
-    inputLabel: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: COLORS.gray,
-        marginBottom: 8,
-        textTransform: 'uppercase',
-    },
-    pointsInput: {
-        borderWidth: 2,
-        borderColor: COLORS.border,
-        borderRadius: 12,
-        padding: 16,
-        fontSize: 24,
-        backgroundColor: '#f8fafc',
-        color: COLORS.dark,
-        textAlign: 'center',
-        fontWeight: 'bold',
-    },
-    modalActions: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    modalButton: {
-        flex: 1,
-        paddingVertical: 14,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-    },
-    cancelButton: {
-        backgroundColor: COLORS.white,
-        borderColor: COLORS.border,
-    },
-    confirmButton: {
-        backgroundColor: COLORS.primary,
-        borderColor: COLORS.primary,
-    },
-    cancelButtonText: {
-        color: COLORS.gray,
-        fontWeight: '600',
-        fontSize: 16,
-    },
-    confirmButtonText: {
-        color: COLORS.white,
-        fontWeight: 'bold',
-        fontSize: 16,
     },
 });

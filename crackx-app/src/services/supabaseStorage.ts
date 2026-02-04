@@ -243,6 +243,7 @@ class SupabaseStorageService {
     async saveReport(report: Report): Promise<void> {
         try {
             // Save to Supabase
+            console.log(`[Supabase] Upserting report ${report.id} with status ${report.status}...`);
             const { data, error } = await supabase
                 .from('reports')
                 .upsert({
@@ -268,9 +269,12 @@ class SupabaseStorageService {
                 .select()
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                console.error(`[Supabase] Upsert failed for report ${report.id}:`, error);
+                throw error;
+            }
 
-            console.log(`[Supabase] Report ${report.id} saved successfully`);
+            console.log(`[Supabase] Report ${report.id} saved successfully with status: ${report.status}`);
 
             // Update local cache
             const reports = await this.getLocalReports();

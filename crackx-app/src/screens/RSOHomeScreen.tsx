@@ -39,8 +39,6 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [repairPhoto, setRepairPhoto] = useState<string | null>(null);
-    const [materials, setMaterials] = useState<{ name: string; quantity: string; unit: string }[]>([]);
-    const [newMaterial, setNewMaterial] = useState({ name: '', quantity: '', unit: 'kg' });
     const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
@@ -120,58 +118,61 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
     const initiateCompletion = (report: Report) => {
         setSelectedReport(report);
         setRepairPhoto(null);
-        setMaterials([]);
         setModalVisible(true);
     };
 
-    const addMaterial = () => {
-        if (newMaterial.name && newMaterial.quantity) {
-            setMaterials([...materials, newMaterial]);
-            setNewMaterial({ name: '', quantity: '', unit: 'kg' });
+    const takeRepairPhoto = async () => {
+        if (Platform.OS === 'web') {
+            await pickFromGallery();
         } else {
-            Alert.alert(t('error'), 'Please fill material name and quantity');
+            Alert.alert(
+                t('upload_photo'),
+                t('choose_source'),
+                [
+                    { text: t('camera'), onPress: openCamera },
+                    { text: t('gallery'), onPress: pickFromGallery },
+                    { text: t('cancel'), style: 'cancel' },
+                ]
+            );
         }
     };
 
-    const removeMaterial = (index: number) => {
-        const updated = [...materials];
-        updated.splice(index, 1);
-        setMaterials(updated);
-    };
-
-    const takeRepairPhoto = async () => {
+    const openCamera = async () => {
         try {
-            if (Platform.OS === 'web') {
-                // On Web, file upload is more reliable than camera for PWA/Basic testing
-                const result = await ImagePicker.launchImageLibraryAsync({
-                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                    quality: 0.5,
-                    allowsEditing: true,
-                });
-                if (!result.canceled && result.assets && result.assets.length > 0) {
-                    setRepairPhoto(result.assets[0].uri);
-                }
-            } else {
-                // On Native, try Camera first
-                const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-                if (permissionResult.granted === false) {
-                    Alert.alert(t('error'), 'Camera permission is required');
-                    return;
-                }
+            const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+            if (permissionResult.granted === false) {
+                Alert.alert(t('error'), 'Camera permission is required');
+                return;
+            }
 
-                const result = await ImagePicker.launchCameraAsync({
-                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                    quality: 0.5,
-                    allowsEditing: true,
-                });
+            const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                quality: 0.5,
+                allowsEditing: true,
+            });
 
-                if (!result.canceled && result.assets && result.assets.length > 0) {
-                    setRepairPhoto(result.assets[0].uri);
-                }
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                setRepairPhoto(result.assets[0].uri);
             }
         } catch (error) {
-            console.log('Error taking photo:', error);
-            Alert.alert('Error', 'Could not open camera/gallery.');
+            console.log('Error opening camera:', error);
+            Alert.alert('Error', 'Could not open camera.');
+        }
+    };
+
+    const pickFromGallery = async () => {
+        try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                quality: 0.5,
+                allowsEditing: true,
+            });
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                setRepairPhoto(result.assets[0].uri);
+            }
+        } catch (error) {
+            console.log('Error picking from gallery:', error);
+            Alert.alert('Error', 'Could not open gallery.');
         }
     };
 
@@ -181,39 +182,41 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
             return;
         }
 
-        if (materials.length === 0) {
-            Alert.alert(t('error'), 'Please add at least one material used');
-            return;
-        }
-
         setUploading(true);
+        console.log(`[RSO] Starting completion for report ${selectedReport.id}`);
         try {
             const report = await storageService.getReportById(selectedReport.id);
             if (report) {
                 // Upload photo to Supabase
                 try {
+                    console.log('[RSO] Uploading repair proof...');
                     const publicUrl = await uploadImageToSupabase(repairPhoto, 'repair-proofs', report.id);
+                    console.log('[RSO] Repair proof uploaded:', publicUrl);
 
                     report.status = 'completed';
                     report.repairCompletedAt = new Date().toISOString();
-                    report.repairProofUri = publicUrl; // Save Public URL
-                    report.materialsUsed = materials;
-                    report.rsoId = user?.username;
+                    report.repairProofUri = publicUrl;
+                    report.rsoId = user?.id; // Use ID for foreign key
 
+                    console.log('[RSO] Saving updated report to Supabase...');
                     await storageService.saveReport(report);
+                    console.log('[RSO] Report saved successfully');
 
                     setModalVisible(false);
-                    loadReports();
+                    await loadReports(); // Refresh local list
                     Alert.alert(t('success'), t('repair_completed'));
                 } catch (uploadError) {
-                    console.error('Upload failed:', uploadError);
+                    console.error('[RSO] Upload failed:', uploadError);
                     Alert.alert('Upload Failed', 'Could not upload repair photo. Please check your connection and try again.');
                     setUploading(false); // Stop here
                     return;
                 }
+            } else {
+                console.error('[RSO] Could not find report details for ID:', selectedReport.id);
+                Alert.alert(t('error'), 'Could not find report details');
             }
         } catch (error) {
-            console.error(error);
+            console.error('[RSO] Error in confirmCompletion:', error);
             Alert.alert(t('error'), 'Failed to update report');
         } finally {
             setUploading(false);
@@ -391,38 +394,7 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                             </TouchableOpacity>
                         )}
 
-                        <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Material Inventory Tracking</Text>
-                        <View style={styles.materialInputRow}>
-                            <TextInput
-                                style={styles.materialInput}
-                                placeholder="Material (e.g. Asphalt)"
-                                value={newMaterial.name}
-                                onChangeText={(text) => setNewMaterial({ ...newMaterial, name: text })}
-                            />
-                            <TextInput
-                                style={[styles.materialInput, { width: 80, marginLeft: 8 }]}
-                                placeholder="Qty"
-                                value={newMaterial.quantity}
-                                onChangeText={(text) => setNewMaterial({ ...newMaterial, quantity: text })}
-                                keyboardType="numeric"
-                            />
-                            <TouchableOpacity style={styles.addButton} onPress={addMaterial}>
-                                <Ionicons name="add" size={24} color={COLORS.white} />
-                            </TouchableOpacity>
-                        </View>
 
-                        <View style={styles.materialsList}>
-                            {materials.map((m, index) => (
-                                <View key={index} style={styles.materialTag}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                        <Text style={styles.materialTagText}>{m.name} ({m.quantity} {m.unit})</Text>
-                                        <TouchableOpacity onPress={() => removeMaterial(index)}>
-                                            <Ionicons name="close-circle" size={18} color={COLORS.danger} style={{ marginLeft: 8 }} />
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            ))}
-                        </View>
 
                         <View style={styles.modalActions}>
                             <TouchableOpacity
@@ -435,10 +407,10 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                                 style={[
                                     styles.modalButton,
                                     styles.modalButtonConfirm,
-                                    (!repairPhoto || materials.length === 0) && styles.disabledButton
+                                    (!repairPhoto) && styles.disabledButton
                                 ]}
                                 onPress={confirmCompletion}
-                                disabled={!repairPhoto || materials.length === 0 || uploading}
+                                disabled={!repairPhoto || uploading}
                             >
                                 <Text style={styles.modalButtonTextConfirm}>
                                     {uploading ? t('loading') : t('confirm')}

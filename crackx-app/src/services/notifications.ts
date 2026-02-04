@@ -198,6 +198,26 @@ class NotificationService {
         }
     }
 
+    async scheduleNotification(title: string, body: string, data: any = {}) {
+        const id = await Notifications.scheduleNotificationAsync({
+            content: {
+                title,
+                body,
+                data,
+            },
+            trigger: null,
+        });
+
+        await this.saveNotificationToStorage({
+            id,
+            title,
+            body,
+            data,
+            timestamp: new Date().toISOString(),
+            read: false,
+        });
+    }
+
     /**
      * Get all notifications
      */

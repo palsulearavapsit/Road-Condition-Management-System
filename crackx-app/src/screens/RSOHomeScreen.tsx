@@ -693,6 +693,7 @@ const styles = StyleSheet.create({
         padding: 10,
         fontSize: 14,
         flex: 1,
+        color: COLORS.dark,
     },
     addButton: {
         backgroundColor: COLORS.primary,

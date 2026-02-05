@@ -107,6 +107,7 @@ export default function LoginScreen({ onLoginSuccess, onSignupClick }: LoginScre
                             value={username}
                             onChangeText={setUsername}
                             placeholder="Enter username"
+                            placeholderTextColor={COLORS.gray}
                             autoCapitalize="none"
                             autoCorrect={false}
                         />
@@ -119,6 +120,7 @@ export default function LoginScreen({ onLoginSuccess, onSignupClick }: LoginScre
                             value={password}
                             onChangeText={setPassword}
                             placeholder="Enter password"
+                            placeholderTextColor={COLORS.gray}
                             secureTextEntry
                             autoCapitalize="none"
                         />

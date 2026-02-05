@@ -27,6 +27,9 @@ export default {
     login_success: 'ಲಾಗಿನ್ ಯಶಸ್ವಿಯಾಗಿದೆ',
     login_error: 'ತಪ್ಪು ಮಾಹಿತಿಗಳು',
     demo_mode: 'ಡೆಮೊ ಮೋಡ್',
+    create_account: 'ಖಾತೆ ತೆರೆಯಿರಿ',
+    sign_up: 'ಸೈನ್ ಅಪ್',
+    confirm_password: 'ಪಾಸ್‌ವರ್ಡ್ ಖಚಿತಪಡಿಸಿ',
 
     // Permissions
     location_permission_title: 'ಸ್ಥಳದ ಅನುಮತಿ ಅಗತ್ಯವಿದೆ',
@@ -98,6 +101,10 @@ export default {
     repair_completed: 'ದುರಸ್ತಿ ಪೂರ್ಣಗೊಂಡಿದೆ',
 
     // Admin
+    citizen_dashboard: 'ನಾಗರಿಕ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್',
+    rso_dashboard: 'RSO ಡ್ಯಾಶ್‌ಬೋರ್ಡ್',
+    admin_dashboard: 'ನಿರ್ವಾಹಕ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್',
+    sync_data: 'ಡೇಟಾ ಸಿಂಕ್ ಮಾಡಿ',
     dashboard: 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್',
     analytics: 'ಅನಾಲಿಟಿಕ್ಸ್',
     zone_performance: 'ವಲಯದ ಕಾರ್ಯಕ್ಷಮತೆ',
@@ -105,6 +112,7 @@ export default {
     severity_distribution: 'ಗಂಭೀರತೆ ಹಂಚಿಕೆ',
     total_reports: 'ಒಟ್ಟು ವರದಿಗಳು',
     avg_severity: 'ಸರಾಸರಿ ಗಂಭೀರತೆ',
+    user_management: 'ಬಳಕೆದಾರ ನಿರ್ವ ಹಣೆ',
 
     // Status
     pending: 'ಬಾಕಿ',
@@ -116,4 +124,19 @@ export default {
     reports: 'ವರದಿಗಳು',
     profile: 'ಪ್ರೊಫೈಲ್',
     settings: 'ಸೆಟ್ಟಿಂಗ್‌ಗಳು',
+
+    // New Additions
+    recent_reports: 'ಇತ್ತೀಚಿನ ವರದಿಗಳು',
+    notifications: 'ಸೂಚನೆಗಳು',
+    mark_all_read: 'ಎಲ್ಲವನ್ನೂ ಓದಿದಂತೆ ಗುರುತಿಸಿ',
+    close: 'ಮುಚ್ಚಿ',
+    click_to_report: 'ರಸ್ತೆ ಸಮಸ್ಯೆಯ ಫೋಟೋ ತೆಗೆಯಿರಿ',
+    view_status: 'ಸ್ಥಿತಿ ನವೀಕರಣಗಳನ್ನು ವೀಕ್ಷಿಸಿ',
+    no_notifications: 'ಇನ್ನೂ ಯಾವುದೇ ಸೂಚನೆಗಳಿಲ್ಲ',
+    assigned_zone_feed: 'ನಿಯೋಜಿತ ವಲಯ ಮಾಹಿತಿ',
+    material_inventory: 'ವಸ್ತು ಮತ್ತು ದಾಸ್ತಾನು',
+    disaster_heatmap: 'ವಿಪತ್ತು ಹೀಟ್‌ಮ್ಯಾಪ್',
+    citizen_feedback: 'ನಾಗರಿಕ ಪ್ರತಿಕ್ರಿಯೆ',
+    points_management: 'ಅಂಕ ನಿರ್ವಹಣೆ',
+    repair_complete_label: 'ದುರಸ್ತಿ ಪೂರ್ಣಗೊಂಡಿದೆ:',
 };

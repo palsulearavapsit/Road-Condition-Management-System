@@ -27,6 +27,9 @@ export default {
     login_success: 'लॉगिन सफल',
     login_error: 'अमान्य क्रेडेंशियल्स',
     demo_mode: 'डेमो मोड',
+    create_account: 'खाता बनाएं',
+    sign_up: 'साइन अप',
+    confirm_password: 'पासवर्ड की पुष्टि करें',
 
     // Permissions
     location_permission_title: 'स्थान अनुमति आवश्यक',
@@ -98,6 +101,10 @@ export default {
     repair_completed: 'मरम्मत पूरी हुई',
 
     // Admin
+    citizen_dashboard: 'नागरिक डैशबोर्ड',
+    rso_dashboard: 'RSO डैशबोर्ड',
+    admin_dashboard: 'एडमिन डैशबोर्ड',
+    sync_data: 'डेटा सिंक करें',
     dashboard: 'डैशबोर्ड',
     analytics: 'एनालिटिक्स',
     zone_performance: 'ज़ोन प्रदर्शन',
@@ -105,6 +112,7 @@ export default {
     severity_distribution: 'गंभीरता वितरण',
     total_reports: 'कुल रिपोर्ट',
     avg_severity: 'औसत गंभीरता',
+    user_management: 'उपयोगकर्ता प्रबंधन',
 
     // Status
     pending: 'लंबित',
@@ -116,4 +124,19 @@ export default {
     reports: 'रिपोर्ट',
     profile: 'प्रोफ़ाइल',
     settings: 'सेटिंग्स',
+
+    // New Additions
+    recent_reports: 'हालिया रिपोर्ट',
+    notifications: 'सूचनाएं',
+    mark_all_read: 'सभी पढ़ें',
+    close: 'बंद करें',
+    click_to_report: 'सड़क समस्या की तस्वीर लें',
+    view_status: 'स्थिति अपडेट देखें',
+    no_notifications: 'अभी कोई सूचना नहीं',
+    assigned_zone_feed: 'असाइन किया गया ज़ोन फीड',
+    material_inventory: 'सामग्री और इन्वेंट्री',
+    disaster_heatmap: 'आपदा हीटमैप',
+    citizen_feedback: 'नागरिक प्रतिक्रिया',
+    points_management: 'अंक प्रबंधन',
+    repair_complete_label: 'मरम्मत पूरी हुई:',
 };

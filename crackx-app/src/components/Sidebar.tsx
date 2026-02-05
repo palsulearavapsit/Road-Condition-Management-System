@@ -33,22 +33,22 @@ export default function Sidebar({ role, activeRoute, onNavigate, onLogout, onClo
                     { id: 'Dashboard', label: t('dashboard'), icon: '🏠' },
                     { id: 'ReportDamage', label: t('report_damage'), icon: '📸' },
                     { id: 'MyReports', label: t('my_reports'), icon: '📄' },
-                    { id: 'Notifications', label: 'Notifications', icon: '🔔' },
+                    { id: 'Notifications', label: t('notifications'), icon: '🔔' },
                 ];
             case 'rso':
                 return [
-                    { id: 'Assigned', label: 'Assigned Zone Feed', icon: '📍' },
-                    { id: 'VendorPortal', label: 'Material & Inventory', icon: '📦' },
-                    { id: 'Notifications', label: 'Notifications', icon: '🔔' },
+                    { id: 'Assigned', label: t('assigned_zone_feed'), icon: '📍' },
+                    { id: 'VendorPortal', label: t('material_inventory'), icon: '📦' },
+                    { id: 'Notifications', label: t('notifications'), icon: '🔔' },
                 ];
             case 'admin':
                 return [
                     { id: 'Dashboard', label: t('admin_dashboard'), icon: '🏠' },
-                    { id: 'Heatmap', label: 'Disaster Heatmap', icon: '🔥' },
-                    { id: 'Feedback', label: 'Citizen Feedback', icon: '⭐' },
-                    { id: 'Points', label: 'Points Management', icon: '💎' },
+                    { id: 'Heatmap', label: t('disaster_heatmap'), icon: '🔥' },
+                    { id: 'Feedback', label: t('citizen_feedback'), icon: '⭐' },
+                    { id: 'Points', label: t('points_management'), icon: '💎' },
                     { id: 'UserManagement', label: t('user_management'), icon: '👥' },
-                    { id: 'Notifications', label: 'Notifications', icon: '🔔' },
+                    { id: 'Notifications', label: t('notifications'), icon: '🔔' },
                 ];
             default:
                 return [];

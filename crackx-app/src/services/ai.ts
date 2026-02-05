@@ -6,13 +6,33 @@ class AIService {
      * Real AI detection using backend YOLO model
      */
     async detectDamage(imageUri: string): Promise<AIDetectionResult> {
+        if (!FEATURES.USE_REAL_AI) {
+            console.log('🤖 AI Detection: using mock mode (Real AI disabled)');
+            return this.mockDetection();
+        }
+
         try {
             // Create FormData to send image
             const formData = new FormData();
 
             // Convert image URI to blob
-            const response = await fetch(imageUri);
-            const blob = await response.blob();
+            const uriToBlob = (uri: string): Promise<Blob> => {
+                return new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.onload = function () {
+                        resolve(xhr.response);
+                    };
+                    xhr.onerror = function (e) {
+                        console.error('❌ uriToBlob failed:', e);
+                        reject(new Error('uriToBlob failed'));
+                    };
+                    xhr.responseType = 'blob';
+                    xhr.open('GET', uri, true);
+                    xhr.send(null);
+                });
+            };
+
+            const blob = await uriToBlob(imageUri);
 
             // Append image to form data
             formData.append('image', blob, 'damage.jpg');

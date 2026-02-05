@@ -124,6 +124,7 @@ export default function SignupScreen({ onBackToLogin }: SignupScreenProps) {
                             value={username}
                             onChangeText={setUsername}
                             placeholder="Choose a username"
+                            placeholderTextColor={COLORS.gray}
                             autoCapitalize="none"
                         />
                     </View>
@@ -136,6 +137,7 @@ export default function SignupScreen({ onBackToLogin }: SignupScreenProps) {
                             value={password}
                             onChangeText={setPassword}
                             placeholder="Create a password"
+                            placeholderTextColor={COLORS.gray}
                             secureTextEntry
                             autoCapitalize="none"
                         />
@@ -149,6 +151,7 @@ export default function SignupScreen({ onBackToLogin }: SignupScreenProps) {
                             value={confirmPassword}
                             onChangeText={setConfirmPassword}
                             placeholder="Repeat password"
+                            placeholderTextColor={COLORS.gray}
                             secureTextEntry
                             autoCapitalize="none"
                         />
@@ -319,6 +322,7 @@ const styles = StyleSheet.create({
         padding: 14,
         fontSize: 16,
         backgroundColor: '#f8fafc',
+        color: COLORS.dark,
     },
     dropdownHeader: {
         flexDirection: 'row',

@@ -210,11 +210,34 @@ class SupabaseStorageService {
     }
 
     /**
-     * Delete a registered user from Supabase
+     * Delete a registered user from Supabase and cascade delete their data
      */
     async deleteRegisteredUser(username: string): Promise<void> {
         try {
-            // Delete from Supabase
+            // 1. Get User ID first (needed for foreign key deletions)
+            const { data: userData } = await supabase
+                .from('users')
+                .select('id')
+                .eq('username', username)
+                .single();
+
+            if (userData?.id) {
+                console.log(`[Supabase] Cascading delete for user ${username} (${userData.id})...`);
+
+                // 2. Delete related Notifications
+                await supabase.from('notifications').delete().eq('user_id', userData.id);
+
+                // 3. Delete related Reports (Citizen Reports)
+                await supabase.from('reports').delete().eq('citizen_id', userData.id);
+
+                // 4. Delete related Reports (Assigned RSO) - Optional: Set to null instead?
+                // For now, we just unassign them or let the frontend handle reassignment.
+                // But to be safe, we'll leave RSO ID as is or nullify if your schema supports it.
+                // If strict foreign key, we might need to update reports first:
+                await supabase.from('reports').update({ rso_id: null }).eq('rso_id', userData.id);
+            }
+
+            // 5. Finally, Delete User
             const { error } = await supabase
                 .from('users')
                 .delete()

@@ -124,4 +124,19 @@ export default {
     reports: 'Reports',
     profile: 'Profile',
     settings: 'Settings',
+
+    // New Additions
+    recent_reports: 'Recent Reports',
+    notifications: 'Notifications',
+    mark_all_read: 'Mark all as read',
+    close: 'Close',
+    click_to_report: 'Click photo of road issue',
+    view_status: 'View status updates',
+    no_notifications: 'No notifications yet',
+    assigned_zone_feed: 'Assigned Zone Feed',
+    material_inventory: 'Material & Inventory',
+    disaster_heatmap: 'Disaster Heatmap',
+    citizen_feedback: 'Citizen Feedback',
+    points_management: 'Points Management',
+    repair_complete_label: 'Repair Complete:',
 };

@@ -150,8 +150,8 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
     const handleDeleteUser = (usernameToDelete: string) => {
         const userToDelete = [...activeUsers, ...pendingUsers].find(u => u.username === usernameToDelete);
 
-        if (usernameToDelete === 'admin' || (userToDelete && userToDelete.role === 'admin')) {
-            Alert.alert('Error', 'Cannot delete an admin account');
+        if (usernameToDelete === 'admin') {
+            Alert.alert('Error', 'Cannot delete the main admin account');
             return;
         }
 
@@ -343,7 +343,7 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
                                             <Ionicons name="create-outline" size={20} color={COLORS.primary} />
                                         </TouchableOpacity>
                                     )}
-                                    {user.role !== 'admin' && (
+                                    {user.username !== 'admin' && (
                                         <TouchableOpacity style={styles.iconBtn} onPress={() => handleDeleteUser(user.username)}>
                                             <Ionicons name="trash-outline" size={20} color={COLORS.danger} />
                                         </TouchableOpacity>

@@ -27,6 +27,9 @@ export default {
     login_success: 'लॉगिन यशस्वी',
     login_error: 'अवैध क्रेडेंशियल्स',
     demo_mode: 'डेमो मोड',
+    create_account: 'खाते तयार करा',
+    sign_up: 'साइन अप',
+    confirm_password: 'पासवर्डची पुष्टी करा',
 
     // Permissions
     location_permission_title: 'स्थान परवानगी आवश्यक',
@@ -98,6 +101,10 @@ export default {
     repair_completed: 'दुरुस्ती पूर्ण',
 
     // Admin
+    citizen_dashboard: 'नागरिक डॅशबोर्ड',
+    rso_dashboard: 'RSO डॅशबोर्ड',
+    admin_dashboard: 'प्रशासक डॅशबोर्ड',
+    sync_data: 'डेटा समक्रमित करा',
     dashboard: 'डॅशबोर्ड',
     analytics: 'विश्लेषण',
     zone_performance: 'झोन कामगिरी',
@@ -105,6 +112,7 @@ export default {
     severity_distribution: 'तीव्रता वितरण',
     total_reports: 'एकूण अहवाल',
     avg_severity: 'सरासरी तीव्रता',
+    user_management: 'वापरकर्ता व्यवस्थापन',
 
     // Status
     pending: 'प्रलंबित',
@@ -116,4 +124,19 @@ export default {
     reports: 'अहवाल',
     profile: 'प्रोफाइल',
     settings: 'सेटिंग्ज',
+
+    // New Additions
+    recent_reports: 'अलीकडील अहवाल',
+    notifications: 'सूचना',
+    mark_all_read: 'सर्व वाचलेले म्हणून चिन्हांकित करा',
+    close: 'बंद करा',
+    click_to_report: 'रस्ते समस्येचा फोटो घ्या',
+    view_status: 'स्थिती अपडेट पहा',
+    no_notifications: 'अद्याप कोणतीही सूचना नाही',
+    assigned_zone_feed: 'नियुक्त झोन फीड',
+    material_inventory: 'साहित्य आणि साठा',
+    disaster_heatmap: 'आपत्ती हीटमॅप',
+    citizen_feedback: 'नागरिक अभिप्राय',
+    points_management: 'गुण व्यवस्थापन',
+    repair_complete_label: 'दुरुस्ती पूर्ण:',
 };

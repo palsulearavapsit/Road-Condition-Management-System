@@ -24,6 +24,7 @@ import { uploadImageToSupabase } from '../services/imageUpload';
 import { generateId } from '../utils';
 import { MapComponent } from '../components/MapComponent';
 import DashboardLayout from '../components/DashboardLayout';
+import { checkConnectionWithMessage } from '../utils/networkCheck';
 
 interface ReportDamageScreenProps {
     onNavigate: (screen: string) => void;
@@ -149,6 +150,22 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
     const handleSubmit = async () => {
         setLoading(true);
         try {
+            // Check network connectivity first
+            console.log('🌐 Checking network connectivity...');
+            const connectionCheck = await checkConnectionWithMessage();
+
+            if (!connectionCheck.connected) {
+                Alert.alert(
+                    'No Internet Connection',
+                    connectionCheck.message,
+                    [{ text: 'OK' }]
+                );
+                setLoading(false);
+                return;
+            }
+
+            console.log('✅ Network connection verified');
+
             const user = await authService.getCurrentUser();
             if (!user) {
                 Alert.alert(t('error'), 'User not found');
@@ -214,9 +231,20 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
 
             // Show detailed error message
             const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+
+            // Provide user-friendly error messages
+            let userMessage = errorMessage;
+            if (errorMessage.includes('Network') || errorMessage.includes('network')) {
+                userMessage = 'Network connection failed. Please check your internet connection and try again.';
+            } else if (errorMessage.includes('timeout')) {
+                userMessage = 'Request timed out. Please check your internet speed and try again.';
+            } else if (errorMessage.includes('unauthorized') || errorMessage.includes('auth')) {
+                userMessage = 'Authentication error. Please log out and log in again.';
+            }
+
             Alert.alert(
                 t('error'),
-                `Failed to submit report:\n\n${errorMessage}\n\nPlease check your internet connection and try again.`
+                userMessage
             );
         } finally {
             setLoading(false);
@@ -406,6 +434,7 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Enter details about location (Landmarks, Road Name)..."
+                                    placeholderTextColor={COLORS.gray}
                                     value={manualAddress}
                                     onChangeText={setManualAddress}
                                     multiline
@@ -643,6 +672,7 @@ const styles = StyleSheet.create({
         textAlignVertical: 'top',
         borderWidth: 1,
         borderColor: COLORS.border,
+        color: COLORS.dark,
     },
     resultCard: {
         backgroundColor: COLORS.white,

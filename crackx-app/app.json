@@ -2,7 +2,7 @@
   "expo": {
     "name": "CrackX",
     "slug": "crackx-app",
-    "version": "1.0.1",
+    "version": "1.0.7",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -27,6 +27,7 @@
         "backgroundColor": "#2563eb"
       },
       "permissions": [
+        "android.permission.INTERNET",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.CAMERA",
@@ -39,7 +40,7 @@
       "predictiveBackGestureEnabled": false,
       "enableDangerousExperimentalLeanBuilds": true,
       "bundleIdentifier": "com.crackx.app",
-      "versionCode": 2
+      "versionCode": 8
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -70,17 +71,18 @@
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
             "extraProguardRules": "-keep class com.mapbox.** { *; }\n-keep class com.rnmapbox.** { *; }\n-dontwarn com.mapbox.**",
-            "enableMinifyInReleaseBuilds": true
+            "enableMinifyInReleaseBuilds": true,
+            "usesCleartextTraffic": true
           }
         }
       ],
       "expo-font"
     ],
-    "owner": "aravpalsule",
     "extra": {
       "eas": {
-        "projectId": "5f7228b3-89f8-4407-9730-ec8d339bb1ee"
+        "projectId": "60ff8803-af53-4ab9-8057-49d37c20615b"
       }
-    }
+    },
+    "owner": "aravp"
   }
 }

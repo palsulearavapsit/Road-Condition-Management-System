@@ -11,6 +11,7 @@ import {
     useWindowDimensions,
     ScrollView
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Sidebar from './Sidebar';
 import { COLORS } from '../constants';
 import { UserRole } from '../types';
@@ -43,6 +44,7 @@ export default function DashboardLayout({
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isNotifVisible, setNotifVisible] = useState(false);
+    const { t } = useTranslation();
 
     const toggleSidebar = () => setSidebarVisible(!isSidebarVisible);
 
@@ -208,9 +210,9 @@ export default function DashboardLayout({
                         />
                         <View style={styles.notifCenter}>
                             <View style={styles.notifHeader}>
-                                <Text style={styles.notifTitle}>Notifications</Text>
+                                <Text style={styles.notifTitle}>{t('notifications')}</Text>
                                 <TouchableOpacity onPress={markAllRead}>
-                                    <Text style={styles.markReadText}>Mark all as read</Text>
+                                    <Text style={styles.markReadText}>{t('mark_all_read')}</Text>
                                 </TouchableOpacity>
                             </View>
 
@@ -218,7 +220,7 @@ export default function DashboardLayout({
                                 {notifications.length === 0 ? (
                                     <View style={styles.emptyNotifs}>
                                         <Ionicons name="notifications-off-outline" size={48} color={COLORS.gray} style={{ opacity: 0.3 }} />
-                                        <Text style={styles.emptyNotifText}>No notifications yet</Text>
+                                        <Text style={styles.emptyNotifText}>{t('no_notifications')}</Text>
                                     </View>
                                 ) : (
                                     notifications.map((notif) => (
@@ -245,7 +247,7 @@ export default function DashboardLayout({
                                 style={styles.closeNotifBtn}
                                 onPress={() => setNotifVisible(false)}
                             >
-                                <Text style={styles.closeNotifText}>Close</Text>
+                                <Text style={styles.closeNotifText}>{t('close')}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

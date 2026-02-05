@@ -104,7 +104,7 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
                             <Ionicons name="camera-outline" size={28} color={COLORS.primary} />
                         </View>
                         <Text style={styles.actionTitle}>{t('report_damage')}</Text>
-                        <Text style={styles.actionSubtitle}>Click photo of road issue</Text>
+                        <Text style={styles.actionSubtitle}>{t('click_to_report')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -115,19 +115,19 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
                             <Ionicons name="list-outline" size={28} color={COLORS.primary} />
                         </View>
                         <Text style={styles.actionTitle}>{t('my_reports')}</Text>
-                        <Text style={styles.actionSubtitle}>View status updates</Text>
+                        <Text style={styles.actionSubtitle}>{t('view_status')}</Text>
                     </TouchableOpacity>
                 </View>
 
                 {/* Recent Reports List */}
                 <View style={styles.recentSection}>
-                    <Text style={styles.sectionTitle}>Recent Reports</Text>
+                    <Text style={styles.sectionTitle}>{t('recent_reports')}</Text>
                     {reports.length === 0 ? (
                         <View style={styles.emptyState}>
                             <Ionicons name="file-tray-outline" size={48} color={COLORS.gray} style={{ opacity: 0.5, marginBottom: 16 }} />
                             <Text style={styles.emptyText}>{t('no_reports')}</Text>
                             <Text style={styles.emptySubtext}>
-                                Tap "Report Damage" to create your first report
+                                Tap "{t('report_damage')}" to create your first report
                             </Text>
                         </View>
                     ) : (
@@ -169,7 +169,7 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
                                 {/* SHOW REPAIR IMAGE IF COMPLETED */}
                                 {report.status === 'completed' && report.repairProofUri && (
                                     <View style={styles.repairProofContainer}>
-                                        <Text style={styles.repairLabel}>Repair Complete:</Text>
+                                        <Text style={styles.repairLabel}>{t('repair_complete_label')}</Text>
                                         <Image
                                             source={{ uri: report.repairProofUri }}
                                             style={styles.repairImage}

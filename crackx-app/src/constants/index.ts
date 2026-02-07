@@ -14,6 +14,7 @@ export const HARDCODED_DEMO_USERS: Record<string, any> = {
     'atharva': { id: 'rso_atharva', username: 'atharva', password: 'atharva', role: 'rso', zone: 'zone8', isApproved: true, points: 0 },
     'arav': { id: 'cit_arav', username: 'arav', password: 'arav', role: 'citizen', isApproved: true },
     'abbas': { id: 'cit_abbas', username: 'abbas', password: 'abbas', role: 'citizen', isApproved: true },
+    'officer': { id: 'comp_officer', username: 'officer', password: 'officer', role: 'compliance_officer', isApproved: true },
 };
 
 // Zone Definitions for Solapur Municipal Corporation

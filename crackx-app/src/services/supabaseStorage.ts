@@ -128,15 +128,11 @@ class SupabaseStorageService {
             await AsyncStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(users));
 
             // Ensure demo users are included
-            const isInitialized = await AsyncStorage.getItem(STORAGE_KEYS.INITIALIZED);
-            if (!isInitialized) {
-                Object.values(HARDCODED_DEMO_USERS).forEach(demoUser => {
-                    if (!users.find(u => u.username === demoUser.username)) {
-                        users.push(demoUser);
-                    }
-                });
-                await AsyncStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
-            }
+            Object.values(HARDCODED_DEMO_USERS).forEach(demoUser => {
+                if (!users.find(u => u.username === demoUser.username)) {
+                    users.push(demoUser);
+                }
+            });
 
             return users;
         } catch (error) {
@@ -152,16 +148,12 @@ class SupabaseStorageService {
         const usersStr = await AsyncStorage.getItem(STORAGE_KEYS.REGISTERED_USERS);
         let users = usersStr ? JSON.parse(usersStr) : [];
 
-        const isInitialized = await AsyncStorage.getItem(STORAGE_KEYS.INITIALIZED);
-        if (!isInitialized) {
-            Object.values(HARDCODED_DEMO_USERS).forEach(demoUser => {
-                if (!users.find((u: any) => u.username === demoUser.username)) {
-                    users.push(demoUser);
-                }
-            });
-            await AsyncStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(users));
-            await AsyncStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
-        }
+        Object.values(HARDCODED_DEMO_USERS).forEach(demoUser => {
+            if (!users.find((u: any) => u.username === demoUser.username)) {
+                users.push(demoUser);
+            }
+        });
+        await AsyncStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(users));
 
         return users;
     }

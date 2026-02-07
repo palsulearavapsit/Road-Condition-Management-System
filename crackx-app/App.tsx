@@ -21,6 +21,7 @@ import AdminHeatmapScreen from './src/screens/AdminHeatmapScreen';
 import AdminPointsManagementScreen from './src/screens/AdminPointsManagementScreen';
 import AdminFeedbackScreen from './src/screens/AdminFeedbackScreen';
 import VendorPortalScreen from './src/screens/VendorPortalScreen';
+import ComplianceDashboardScreen from './src/screens/ComplianceDashboardScreen';
 
 type AppState =
   | 'loading'
@@ -36,7 +37,8 @@ type AppState =
   | 'admin-heatmap'
   | 'admin-feedback'
   | 'points-management'
-  | 'vendor-portal';
+  | 'vendor-portal'
+  | 'compliance-dashboard';
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('loading');
@@ -105,6 +107,9 @@ export default function App() {
         break;
       case 'admin':
         setAppState('admin-home');
+        break;
+      case 'compliance_officer':
+        setAppState('compliance-dashboard');
         break;
       default:
         setAppState('citizen-home');
@@ -236,6 +241,14 @@ export default function App() {
       case 'vendor-portal':
         return (
           <VendorPortalScreen
+            onNavigate={handleNavigate}
+            onLogout={handleLogout}
+          />
+        );
+
+      case 'compliance-dashboard':
+        return (
+          <ComplianceDashboardScreen
             onNavigate={handleNavigate}
             onLogout={handleLogout}
           />

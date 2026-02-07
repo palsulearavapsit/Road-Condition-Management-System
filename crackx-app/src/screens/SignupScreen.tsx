@@ -35,6 +35,7 @@ export default function SignupScreen({ onBackToLogin }: SignupScreenProps) {
     const roles: { value: UserRole; label: string }[] = [
         { value: 'citizen', label: t('citizen') },
         { value: 'rso', label: t('rso') },
+        { value: 'compliance_officer', label: 'Compliance Officer' },
     ];
 
     const handleSignup = async () => {
@@ -74,7 +75,7 @@ export default function SignupScreen({ onBackToLogin }: SignupScreenProps) {
             console.log('[Signup] Register success:', success);
 
             if (success) {
-                const msg = selectedRole === 'rso'
+                const msg = (selectedRole === 'rso' || selectedRole === 'compliance_officer')
                     ? 'Registration successful! Waiting for Admin approval.'
                     : 'Account created successfully! Please login.';
 
@@ -261,6 +262,7 @@ export default function SignupScreen({ onBackToLogin }: SignupScreenProps) {
                         RSO (Z1): rugved / rugved{'\n'}
                         RSO (Z4): deep / deep{'\n'}
                         RSO (Z8): atharva / atharva{'\n'}
+                        Compliance: officer / officer{'\n'}
                         Citizen: arav / arav{'\n'}
                         Citizen: abbas / abbas
                     </Text>

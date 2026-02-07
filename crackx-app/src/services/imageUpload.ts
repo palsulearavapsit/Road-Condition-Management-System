@@ -16,154 +16,75 @@ export const uploadImageToSupabase = async (
     try {
         console.log('📤 Starting image upload process...');
         console.log('Platform:', Platform.OS);
-        console.log('URI type:', uri.startsWith('data:') ? 'base64' : 'file');
 
-        // Generate unique filename
         const timestamp = Date.now();
-
-        // Fix: Detect extension correctly for both data URLs and normal URIs
         let fileExt = 'jpg';
+
+        // Handle file extension
         if (uri.startsWith('data:')) {
             const mime = uri.match(/:(.*?);/)?.[1];
             fileExt = mime ? mime.split('/')[1] : 'jpg';
         } else {
-            fileExt = uri.split('.').pop()?.split('?')[0] || 'jpg';
+            const ext = uri.split('.').pop()?.split('?')[0];
+            if (ext && ext.length < 5) {
+                fileExt = ext;
+            }
         }
 
         const fileName = `${reportId}_${timestamp}.${fileExt}`;
         const filePath = `${folder}/${fileName}`;
+        const contentType = `image/${fileExt}`;
 
-        console.log('📝 File details:', { fileName, filePath, fileExt });
+        console.log('📝 File details:', { fileName, filePath, contentType });
 
-        // Enhanced blob conversion with timeout and better error handling
-        const uriToBlob = (uri: string): Promise<Blob> => {
-            return new Promise((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
+        // Prepare file body
+        let fileBody: ArrayBuffer | Blob;
 
-                // Set timeout to prevent hanging
-                const timeout = setTimeout(() => {
-                    xhr.abort();
-                    reject(new Error('Blob conversion timeout (30s)'));
-                }, 30000);
-
-                xhr.onload = function () {
-                    clearTimeout(timeout);
-                    if (xhr.status === 200) {
-                        resolve(xhr.response);
-                    } else {
-                        reject(new Error(`XHR failed with status ${xhr.status}`));
-                    }
-                };
-
-                xhr.onerror = function (e) {
-                    clearTimeout(timeout);
-                    console.error('❌ uriToBlob XHR error:', e);
-                    reject(new Error('Failed to convert URI to Blob'));
-                };
-
-                xhr.ontimeout = function () {
-                    clearTimeout(timeout);
-                    reject(new Error('XHR timeout'));
-                };
-
-                xhr.responseType = 'blob';
-                xhr.open('GET', uri, true);
-                xhr.timeout = 30000; // 30 second timeout
-                xhr.send(null);
-            });
-        };
-
-        let blob: Blob;
         if (uri.startsWith('data:')) {
-            console.log('🔄 Converting base64 to Blob manually...');
-            try {
-                const parts = uri.split(',');
-                if (parts.length !== 2) {
-                    throw new Error('Invalid base64 data URI format');
-                }
-
-                const mimeMatch = parts[0].match(/:(.*?);/);
-                const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-
-                const bstr = atob(parts[1]);
-                let n = bstr.length;
-                const u8arr = new Uint8Array(n);
-                while (n--) {
-                    u8arr[n] = bstr.charCodeAt(n);
-                }
-                blob = new Blob([u8arr], { type: mime });
-                console.log('✅ Base64 conversion successful');
-            } catch (base64Error: any) {
-                console.error('❌ Base64 conversion failed:', base64Error);
-                throw new Error(`Base64 conversion failed: ${base64Error.message}`);
+            // Handle Base64 Data URI
+            console.log('🔄 Converting base64 to Blob...');
+            const parts = uri.split(',');
+            const bstr = atob(parts[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
             }
+            fileBody = new Blob([u8arr], { type: contentType });
         } else {
-            // Use XHR for file:// and other URIs on mobile
-            console.log('🔄 Converting URI to Blob via XHR...');
-            try {
-                blob = await uriToBlob(uri);
-                console.log('✅ XHR conversion successful');
-            } catch (xhrError: any) {
-                console.error('❌ XHR conversion failed:', xhrError);
-                throw new Error(`File conversion failed: ${xhrError.message}`);
+            // Handle File URIs (Mobile/Web)
+            console.log('🔄 Fetching file from URI...');
+            const response = await fetch(uri);
+            if (!response.ok) {
+                throw new Error(`Failed to read file: ${response.statusText}`);
+            }
+            // Use ArrayBuffer for more reliable binary upload on Android
+            fileBody = await response.arrayBuffer();
+            console.log(`✅ File fetched successfully (${fileBody.byteLength} bytes)`);
+
+            if (fileBody.byteLength === 0) {
+                throw new Error('File is empty');
             }
         }
 
-        console.log(`📦 Prepared Blob: ${blob.type} (${(blob.size / 1024).toFixed(1)} KB)`);
-
-        // Validate blob size
-        if (blob.size === 0) {
-            throw new Error('Generated blob is empty (0 bytes)');
-        }
-
-        if (blob.size > 10 * 1024 * 1024) { // 10MB limit
-            throw new Error('Image too large (max 10MB)');
-        }
-
-        // Upload to Supabase Storage with retry logic
+        // Upload to Supabase
         console.log('☁️ Uploading to Supabase Storage...');
-        let uploadError: any = null;
-        let uploadData: any = null;
 
-        // Try upload with timeout
-        const uploadPromise = supabase.storage
+        const { data, error } = await supabase.storage
             .from('report-images')
-            .upload(filePath, blob, {
-                contentType: blob.type || `image/${fileExt}`,
+            .upload(filePath, fileBody, {
+                contentType: contentType,
                 cacheControl: '3600',
                 upsert: false,
             });
 
-        const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Upload timeout (60s)')), 60000);
-        });
-
-        try {
-            const result = await Promise.race([uploadPromise, timeoutPromise]) as any;
-            uploadData = result.data;
-            uploadError = result.error;
-        } catch (timeoutError: any) {
-            console.error('❌ Upload timeout:', timeoutError);
-            throw new Error('Upload timeout - please check your internet connection');
+        if (error) {
+            console.error('❌ Supabase Storage Error:', error);
+            throw error;
         }
 
-        if (uploadError) {
-            console.error('❌ Supabase Storage Error:', uploadError);
+        console.log('✅ Upload successful. Retrieving public URL...');
 
-            // Provide more specific error messages
-            if (uploadError.message?.includes('duplicate')) {
-                throw new Error('Image already uploaded. Please try again.');
-            } else if (uploadError.message?.includes('network')) {
-                throw new Error('Network error - please check your internet connection');
-            } else if (uploadError.message?.includes('unauthorized')) {
-                throw new Error('Authentication error - please log in again');
-            } else {
-                throw new Error(`Upload failed: ${uploadError.message || 'Unknown error'}`);
-            }
-        }
-
-        // Get public URL
-        console.log('🔗 Getting public URL...');
         const { data: urlData } = supabase.storage
             .from('report-images')
             .getPublicUrl(filePath);
@@ -172,17 +93,18 @@ export const uploadImageToSupabase = async (
             throw new Error('Failed to get public URL');
         }
 
-        console.log('✅ Image uploaded successfully:', urlData.publicUrl);
+        console.log('🔗 Public URL:', urlData.publicUrl);
         return urlData.publicUrl;
+
     } catch (error: any) {
-        console.error('❌ Upload Failed:', error.message || error);
+        console.error('❌ Upload Failed:', error);
 
-        // Re-throw with user-friendly message
-        if (error.message?.includes('Network request failed')) {
-            throw new Error('Network connection failed. Please check your internet and try again.');
+        // Enhance error message for user
+        let message = error.message || 'Unknown upload error';
+        if (message.includes('Network request failed') || message.includes('fetch')) {
+            message = 'Network error: Unable to connect to storage server. Please check your internet connection.';
         }
-
-        throw error;
+        throw new Error(message);
     }
 };
 

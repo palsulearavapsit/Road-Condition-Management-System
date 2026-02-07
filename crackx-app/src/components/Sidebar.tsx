@@ -50,6 +50,11 @@ export default function Sidebar({ role, activeRoute, onNavigate, onLogout, onClo
                     { id: 'UserManagement', label: t('user_management'), icon: '👥' },
                     { id: 'Notifications', label: t('notifications'), icon: '🔔' },
                 ];
+            case 'compliance_officer':
+                return [
+                    { id: 'Dashboard', label: 'Monitor RSOs', icon: '👮' },
+                    { id: 'Notifications', label: t('notifications'), icon: '🔔' },
+                ];
             default:
                 return [];
         }

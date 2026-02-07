@@ -11,11 +11,11 @@ class SupabaseAuthService {
      * Login with demo credentials or registered users
      * Syncs with Supabase to get latest data (points, etc.)
      */
-    async login(username: string, password: string, role: UserRole): Promise<User | null> {
+    async login(username: string, password: string): Promise<User | null> {
         let user: User | null = null;
         const normalizedUsername = username.trim().toLowerCase();
 
-        console.log(`[Auth] Login attempt: ${normalizedUsername}, Role: ${role}`);
+        console.log(`[Auth] Login attempt: ${normalizedUsername}`);
 
         // 0. Check Hardcoded Permanent Demo Users (Master Fallbacks)
         const hardcoded = HARDCODED_DEMO_USERS[normalizedUsername];
@@ -39,15 +39,19 @@ class SupabaseAuthService {
         }
         // 1. Check Generic Demo Credentials
         else if (normalizedUsername === DEMO_CREDENTIALS.username.toLowerCase() && password === DEMO_CREDENTIALS.password) {
+            // NOTE: Generic demo user logic is tricky without role selection. 
+            // Defaulting to citizen for safety unless we want to keep role selection just for demo user?
+            // The user asked to remove account selection.
+            // Let's assume generic demo login is now primarily for quick citizen access or we disable it.
+            // For now, let's default 'demo' user to 'citizen'.
             console.log(`[Auth] Generic demo user found`);
             user = {
-                id: `demo_${role}_${Date.now()}`,
+                id: `demo_citizen_${Date.now()}`,
                 username: normalizedUsername,
-                role,
-                zone: role === 'rso' ? 'zone8' : undefined,
+                role: 'citizen',
                 isApproved: true,
                 points: 0,
-                adminPointsPool: role === 'admin' ? 10000 : 0
+                adminPointsPool: 0
             };
         } else {
             // 2. Check Registered Users from Supabase
@@ -60,8 +64,8 @@ class SupabaseAuthService {
 
             if (found) {
                 console.log(`[Auth] Registered user found: ${normalizedUsername} with role: ${found.role}`);
-                if (found.role === 'rso' && found.isApproved === false) {
-                    throw new Error('Account is pending Admin approval.');
+                if ((found.role === 'rso' || found.role === 'compliance_officer') && found.isApproved === false) {
+                    throw new Error(`Your ${found.role === 'rso' ? 'RSO' : 'Compliance Officer'} account is pending Admin approval.`);
                 }
                 const { password: _, ...rest } = found;
                 user = rest as User;
@@ -95,7 +99,7 @@ class SupabaseAuthService {
             password,
             role,
             zone: role === 'rso' ? zone : undefined,
-            isApproved: role !== 'rso', // RSO requires approval
+            isApproved: (role !== 'rso' && role !== 'compliance_officer'), // RSO and Compliance Officer require approval
             points: 0,
             adminPointsPool: role === 'admin' ? 10000 : 0,
         };

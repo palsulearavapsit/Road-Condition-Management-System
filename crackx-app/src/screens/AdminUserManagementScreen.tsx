@@ -38,7 +38,7 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
         setLoading(true);
         try {
             const users = await storageService.getRegisteredUsers();
-            const pending = users.filter(u => u.role === 'rso' && u.isApproved === false);
+            const pending = users.filter(u => (u.role === 'rso' || u.role === 'compliance_officer') && u.isApproved === false);
             const active = users.filter(u => u.isApproved !== false); // Users who are approved or don't need approval
 
             setPendingUsers(pending);
@@ -59,7 +59,7 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
     // Form Data
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [role, setRole] = useState<'citizen' | 'rso' | 'admin'>('citizen');
+    const [role, setRole] = useState<'citizen' | 'rso' | 'admin' | 'compliance_officer'>('citizen');
     const [zone, setZone] = useState('');
 
     const openAddUser = () => {
@@ -391,7 +391,7 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
                         <View style={styles.inputContainer}>
                             <Text style={styles.label}>Role</Text>
                             <View style={styles.roleSelector}>
-                                {['citizen', 'rso', 'admin'].map((r) => (
+                                {['citizen', 'rso', 'admin', 'compliance_officer'].map((r) => (
                                     <TouchableOpacity
                                         key={r}
                                         style={[styles.roleOption, role === r && styles.roleOptionActive]}

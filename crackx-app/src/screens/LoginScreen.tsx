@@ -32,6 +32,7 @@ export default function LoginScreen({ onLoginSuccess, onSignupClick }: LoginScre
     const roles: { value: UserRole; label: string }[] = [
         { value: 'citizen', label: t('citizen') },
         { value: 'rso', label: t('rso') },
+        { value: 'compliance_officer', label: 'Compliance Officer' },
     ];
 
     const changeAppLanguage = (langCode: string) => {
@@ -46,7 +47,7 @@ export default function LoginScreen({ onLoginSuccess, onSignupClick }: LoginScre
 
         setLoading(true);
         try {
-            const user = await authService.login(username, password, selectedRole);
+            const user = await authService.login(username, password);
 
             if (user) {
                 onLoginSuccess();
@@ -128,35 +129,37 @@ export default function LoginScreen({ onLoginSuccess, onSignupClick }: LoginScre
 
 
 
-                    <TouchableOpacity
-                        style={[styles.loginButton, loading && styles.loginButtonDisabled]}
-                        onPress={handleLogin}
-                        disabled={loading}
-                    >
-                        <Text style={styles.loginButtonText}>
-                            {loading ? t('loading') : t('login')}
-                        </Text>
-                    </TouchableOpacity>
+                </View>
 
-                    <TouchableOpacity onPress={onSignupClick} style={styles.linkButton}>
-                        <Text style={styles.linkText}>
-                            Don't have an account? <Text style={styles.linkHighlight}>Sign Up</Text>
-                        </Text>
-                    </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+                    onPress={handleLogin}
+                    disabled={loading}
+                >
+                    <Text style={styles.loginButtonText}>
+                        {loading ? t('loading') : t('login')}
+                    </Text>
+                </TouchableOpacity>
 
-                    {/* Demo Credentials Info */}
-                    <View style={styles.infoBox}>
-                        <Text style={styles.infoText}>
-                            Available Logins:{'\n'}
-                            Admin: admin / admin123{'\n'}
-                            Demo (Any): demo / demo1234{'\n'}
-                            RSO (Z1): rugved / rugved{'\n'}
-                            RSO (Z4): deep / deep{'\n'}
-                            RSO (Z8): atharva / atharva{'\n'}
-                            Citizen: arav / arav{'\n'}
-                            Citizen: abbas / abbas
-                        </Text>
-                    </View>
+                <TouchableOpacity onPress={onSignupClick} style={styles.linkButton}>
+                    <Text style={styles.linkText}>
+                        Don't have an account? <Text style={styles.linkHighlight}>Sign Up</Text>
+                    </Text>
+                </TouchableOpacity>
+
+                {/* Demo Credentials Info */}
+                <View style={styles.infoBox}>
+                    <Text style={styles.infoText}>
+                        Available Logins:{'\n'}
+                        Admin: admin / admin123{'\n'}
+                        Demo (Any): demo / demo1234{'\n'}
+                        RSO (Z1): rugved / rugved{'\n'}
+                        RSO (Z4): deep / deep{'\n'}
+                        RSO (Z8): atharva / atharva{'\n'}
+                        Compliance: officer / officer{'\n'}
+                        Citizen: arav / arav{'\n'}
+                        Citizen: abbas / abbas
+                    </Text>
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>

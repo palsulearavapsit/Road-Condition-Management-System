@@ -57,13 +57,22 @@ class AIService {
                     boundingBox: data.detection.boundingBox,
                 };
             } else {
-                // Fallback to mock detection if API fails
-                return this.mockDetection();
+                console.log('AI: No significant damage detected.');
+                return {
+                    damageType: 'other', // or 'none' if your types allow
+                    confidence: 0,
+                    severity: 'low',
+                    boundingBox: { x: 0, y: 0, width: 0, height: 0 }
+                };
             }
         } catch (error) {
             console.error('AI detection error:', error);
-            // Fallback to mock detection on error
-            return this.mockDetection();
+            return {
+                damageType: 'other',
+                confidence: 0,
+                severity: 'low',
+                boundingBox: { x: 0, y: 0, width: 0, height: 0 }
+            };
         }
     }
 

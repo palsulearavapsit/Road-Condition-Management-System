@@ -65,6 +65,7 @@ export interface Report {
   rsoId?: string;
   citizenRating?: number;
   citizenFeedback?: string;
+  videoUri?: string; // URL to recorded video
 }
 
 // Zone Types

@@ -117,6 +117,17 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
                         <Text style={styles.actionTitle}>{t('my_reports')}</Text>
                         <Text style={styles.actionSubtitle}>{t('view_status')}</Text>
                     </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.actionCard}
+                        onPress={() => onNavigate('LiveDetection')}
+                    >
+                        <View style={[styles.iconCircle, { backgroundColor: '#dcfce7' }]}>
+                            <Ionicons name="videocam-outline" size={28} color={COLORS.success} />
+                        </View>
+                        <Text style={styles.actionTitle}>Live Analysis</Text>
+                        <Text style={styles.actionSubtitle}>Real-time Scan</Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Recent Reports List */}

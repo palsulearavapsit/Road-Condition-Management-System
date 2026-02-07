@@ -336,13 +336,14 @@ export default function ComplianceDashboardScreen({ onNavigate, onLogout }: Comp
                                         <View style={styles.imageWrapper}>
                                             <Text style={styles.imageLabel}>Before</Text>
                                             <Image source={{ uri: report.photoUri }} style={styles.proofImage} />
+                                            <Text style={styles.timeText}>Reported: {new Date(report.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
                                         </View>
 
                                         {report.status === 'completed' && report.repairProofUri ? (
                                             <View style={styles.imageWrapper}>
                                                 <Text style={styles.imageLabel}>After</Text>
                                                 <Image source={{ uri: report.repairProofUri }} style={styles.proofImage} />
-                                                <Text style={styles.timeText}>Fixed: {new Date(report.repairCompletedAt!).toLocaleTimeString()}</Text>
+                                                <Text style={styles.timeText}>Fixed: {new Date(report.repairCompletedAt!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
                                             </View>
                                         ) : (
                                             <View style={[styles.imageWrapper, styles.placeholderWrapper]}>
@@ -621,5 +622,7 @@ const styles = StyleSheet.create({
         fontSize: 10,
         padding: 4,
         textAlign: 'center',
+        borderBottomLeftRadius: 8,
+        borderBottomRightRadius: 8,
     },
 });

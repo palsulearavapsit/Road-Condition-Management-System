@@ -8,6 +8,7 @@ import authService from './src/services/supabaseAuth';
 import locationService from './src/services/location';
 
 // Screens
+// Screens
 import LoginScreen from './src/screens/LoginScreen';
 import SignupScreen from './src/screens/SignupScreen';
 import LocationPermissionScreen from './src/screens/LocationPermissionScreen';
@@ -22,6 +23,8 @@ import AdminPointsManagementScreen from './src/screens/AdminPointsManagementScre
 import AdminFeedbackScreen from './src/screens/AdminFeedbackScreen';
 import VendorPortalScreen from './src/screens/VendorPortalScreen';
 import ComplianceDashboardScreen from './src/screens/ComplianceDashboardScreen';
+import LiveDetectionScreen from './src/screens/LiveDetectionScreen';
+import { AIDetectionResult } from './src/types';
 
 type AppState =
   | 'loading'
@@ -38,11 +41,13 @@ type AppState =
   | 'admin-feedback'
   | 'points-management'
   | 'vendor-portal'
-  | 'compliance-dashboard';
+  | 'compliance-dashboard'
+  | 'live-detection';
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('loading');
   const [userRole, setUserRole] = useState<string>('');
+  const [liveDetectionData, setLiveDetectionData] = useState<{ photoUri: string; detection: AIDetectionResult } | null>(null);
 
   useEffect(() => {
     initialize();
@@ -154,12 +159,22 @@ export default function App() {
       case 'VendorPortal':
         setAppState('vendor-portal');
         break;
+      case 'LiveDetection':
+        setLiveDetectionData(null);
+        setAppState('live-detection');
+        break;
       default:
         navigateToHome(userRole);
     }
   };
 
+  const handleLiveCapture = (photoUri: string, detection: AIDetectionResult) => {
+    setLiveDetectionData({ photoUri, detection });
+    setAppState('report-damage');
+  };
+
   const handleBack = () => {
+    setLiveDetectionData(null);
     navigateToHome(userRole);
   };
 
@@ -254,9 +269,18 @@ export default function App() {
           />
         );
 
+      case 'live-detection':
+        return (
+          <LiveDetectionScreen
+            onCapture={handleLiveCapture}
+            onClose={() => navigateToHome(userRole)}
+          />
+        );
+
       case 'report-damage':
         return (
           <ReportDamageScreen
+            initialData={liveDetectionData}
             onNavigate={handleNavigate}
             onBack={handleBack}
             onSuccess={handleBack}

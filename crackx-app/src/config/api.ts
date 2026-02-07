@@ -43,7 +43,7 @@ export const BASE_URL = API_CONFIG.baseUrl;
 
 // Feature flags
 export const FEATURES = {
-    USE_REAL_AI: false,        // Set to true only if you have a reachable backend server
+    USE_REAL_AI: true,        // Set to true only if you have a reachable backend server
     USE_REAL_SYNC: true,      // Use backend sync or local-only
     OFFLINE_FIRST: true,      // Always save locally first
     AUTO_SYNC: false,         // Auto-sync when online (not recommended)

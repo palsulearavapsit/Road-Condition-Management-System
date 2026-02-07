@@ -121,21 +121,8 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
         setModalVisible(true);
     };
 
-    const takeRepairPhoto = async () => {
-        if (Platform.OS === 'web') {
-            await pickFromGallery();
-        } else {
-            Alert.alert(
-                t('upload_photo'),
-                t('choose_source'),
-                [
-                    { text: t('camera'), onPress: openCamera },
-                    { text: t('gallery'), onPress: pickFromGallery },
-                    { text: t('cancel'), style: 'cancel' },
-                ]
-            );
-        }
-    };
+    // takeRepairPhoto function removed in favor of direct buttons in UI
+
 
     const openCamera = async () => {
         try {
@@ -207,7 +194,7 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                     Alert.alert(t('success'), t('repair_completed'));
                 } catch (uploadError) {
                     console.error('[RSO] Upload failed:', uploadError);
-                    Alert.alert('Upload Failed', 'Could not upload repair photo. Please check your connection and try again.');
+                    Alert.alert(t('upload_failed'), 'Could not upload repair photo. Please check your connection and try again.');
                     setUploading(false); // Stop here
                     return;
                 }
@@ -217,7 +204,7 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
             }
         } catch (error) {
             console.error('[RSO] Error in confirmCompletion:', error);
-            Alert.alert(t('error'), 'Failed to update report');
+            Alert.alert(t('error'), t('failed_update_report'));
         } finally {
             setUploading(false);
         }
@@ -247,21 +234,21 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                 <View style={styles.statsCard}>
                     <View style={styles.statItem}>
                         <Text style={styles.statValue}>{stats.total}</Text>
-                        <Text style={styles.statLabel}>Total</Text>
+                        <Text style={styles.statLabel}>{t('total')}</Text>
                     </View>
                     <View style={styles.divider} />
                     <View style={styles.statItem}>
                         <Text style={[styles.statValue, { color: COLORS.warning }]}>
                             {stats.pending}
                         </Text>
-                        <Text style={styles.statLabel}>Pending</Text>
+                        <Text style={styles.statLabel}>{t('pending')}</Text>
                     </View>
                     <View style={styles.divider} />
                     <View style={styles.statItem}>
                         <Text style={[styles.statValue, { color: COLORS.success }]}>
                             {stats.completed}
                         </Text>
-                        <Text style={styles.statLabel}>Done</Text>
+                        <Text style={styles.statLabel}>{t('done')}</Text>
                     </View>
                 </View>
 
@@ -283,7 +270,7 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                     {reports.length === 0 ? (
                         <View style={styles.emptyState}>
                             <Ionicons name="folder-open-outline" size={64} color={COLORS.gray} style={{ marginBottom: 16, opacity: 0.5 }} />
-                            <Text style={styles.emptyText}>No complaints assigned</Text>
+                            <Text style={styles.emptyText}>{t('no_complaints_assigned')}</Text>
                         </View>
                     ) : (
                         reports.map((report) => (
@@ -294,7 +281,7 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                                         {Platform.OS === 'web' && report.photoUri.startsWith('file://') ? (
                                             <View style={{ alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                                                 <Ionicons name="phone-portrait-outline" size={48} color={COLORS.gray} />
-                                                <Text style={{ color: COLORS.gray, marginTop: 8 }}>Image only available on Mobile</Text>
+                                                <Text style={{ color: COLORS.gray, marginTop: 8 }}>{t('image_only_mobile')}</Text>
                                             </View>
                                         ) : (
                                             <Image
@@ -309,10 +296,10 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                                 <View style={styles.reportHeader}>
                                     <View>
                                         <Text style={styles.reportType}>
-                                            {report.aiDetection?.damageType || 'Unknown'}
+                                            {report.aiDetection?.damageType ? t(report.aiDetection.damageType) : t('unknown')}
                                         </Text>
                                         <Text style={styles.reportLocation}>
-                                            {report.location.roadName || report.location.address || 'Unknown'}
+                                            {report.location.roadName || report.location.address || t('unknown')}
                                         </Text>
                                     </View>
                                     <View
@@ -383,15 +370,26 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                         {repairPhoto ? (
                             <View style={styles.previewContainer}>
                                 <Image source={{ uri: repairPhoto }} style={styles.previewImage} />
-                                <TouchableOpacity onPress={takeRepairPhoto} style={styles.retakeButton}>
+                                <TouchableOpacity onPress={() => setRepairPhoto(null)} style={styles.retakeButton}>
                                     <Text style={styles.retakeText}>{t('retake_photo')}</Text>
                                 </TouchableOpacity>
                             </View>
                         ) : (
-                            <TouchableOpacity onPress={takeRepairPhoto} style={styles.photoPlaceholder}>
-                                <Ionicons name="camera-outline" size={64} color={COLORS.gray} style={{ marginBottom: 12 }} />
-                                <Text style={styles.photoPlaceholderText}>{t('take_photo')}</Text>
-                            </TouchableOpacity>
+                            <View style={styles.uploadOptionsContainer}>
+                                <TouchableOpacity onPress={openCamera} style={styles.uploadOptionButton}>
+                                    <View style={[styles.iconCircle, { backgroundColor: '#eff6ff' }]}>
+                                        <Ionicons name="camera" size={32} color={COLORS.primary} />
+                                    </View>
+                                    <Text style={styles.uploadOptionText}>{t('take_photo')}</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity onPress={pickFromGallery} style={styles.uploadOptionButton}>
+                                    <View style={[styles.iconCircle, { backgroundColor: '#f0fdf4' }]}>
+                                        <Ionicons name="images" size={32} color={COLORS.success} />
+                                    </View>
+                                    <Text style={styles.uploadOptionText}>{t('choose_from_gallery')}</Text>
+                                </TouchableOpacity>
+                            </View>
                         )}
 
 
@@ -754,5 +752,39 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         color: COLORS.dark,
+    },
+    uploadOptionsContainer: {
+        flexDirection: 'row',
+        gap: 16,
+        marginBottom: 24,
+    },
+    uploadOptionButton: {
+        flex: 1,
+        backgroundColor: COLORS.white,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        padding: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    iconCircle: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+    },
+    uploadOptionText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.dark,
+        textAlign: 'center',
     }
 });

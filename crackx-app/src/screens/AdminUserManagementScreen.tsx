@@ -258,7 +258,7 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
                 {/* Pending Approvals Section */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Pending Approvals</Text>
+                        <Text style={styles.sectionTitle}>{t('pending_approvals')}</Text>
                         <View style={styles.badge}>
                             <Text style={styles.badgeText}>{pendingUsers.length}</Text>
                         </View>
@@ -266,16 +266,16 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
 
                     {pendingUsers.length === 0 ? (
                         <View style={styles.emptyState}>
-                            <Text style={styles.emptyText}>No pending requests</Text>
+                            <Text style={styles.emptyText}>{t('no_pending_requests')}</Text>
                         </View>
                     ) : (
                         pendingUsers.map(user => (
                             <View key={user.username} style={styles.userCardPending}>
-                                <View style={styles.userInfo}>
+                                <View style={[styles.userInfo, styles.userInfoColumn]}>
                                     <View style={styles.avatarContainer}>
                                         <Text style={styles.avatarText}>{user.username.substring(0, 2).toUpperCase()}</Text>
                                     </View>
-                                    <View>
+                                    <View style={styles.userDetails}>
                                         <Text style={styles.username}>{user.username}</Text>
                                         <View style={styles.roleTag}>
                                             <Text style={styles.roleTagText}>{t(user.role)}</Text>
@@ -290,13 +290,13 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
                                         style={styles.approveButton}
                                         onPress={() => handleApprove(user.username)}
                                     >
-                                        <Text style={styles.approveButtonText}>Approve</Text>
+                                        <Text style={styles.approveButtonText}>{t('approve')}</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         style={styles.disapproveButton}
                                         onPress={() => handleDisapprove(user.username)}
                                     >
-                                        <Text style={styles.disapproveButtonText}>Disapprove</Text>
+                                        <Text style={styles.disapproveButtonText}>{t('disapprove')}</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -307,16 +307,16 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
                 {/* Active Users Section */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeaderActive}>
-                        <Text style={styles.sectionTitle}>Active Users</Text>
+                        <Text style={styles.sectionTitle}>{t('active_users')}</Text>
                         <TouchableOpacity style={styles.addUserButton} onPress={openAddUser}>
                             <Ionicons name="add" size={20} color={COLORS.white} />
-                            <Text style={styles.addUserText}>Add User</Text>
+                            <Text style={styles.addUserText}>{t('add_user')}</Text>
                         </TouchableOpacity>
                     </View>
 
                     {activeUsers.length === 0 ? (
                         <View style={styles.emptyState}>
-                            <Text style={styles.emptyText}>No active users found</Text>
+                            <Text style={styles.emptyText}>{t('no_active_users')}</Text>
                         </View>
                     ) : (
                         activeUsers.map(user => (
@@ -325,7 +325,7 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
                                     <View style={[styles.avatarContainer, { backgroundColor: COLORS.secondary }]}>
                                         <Text style={[styles.avatarText, { color: COLORS.primary }]}>{user.username.substring(0, 2).toUpperCase()}</Text>
                                     </View>
-                                    <View>
+                                    <View style={styles.userDetails}>
                                         <Text style={styles.username}>{user.username}</Text>
                                         <View style={styles.row}>
                                             <Text style={styles.userRole}>{t(user.role)}</Text>
@@ -365,31 +365,31 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
             >
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>{modalMode === 'add' ? 'Add New User' : 'Edit User'}</Text>
+                        <Text style={styles.modalTitle}>{modalMode === 'add' ? t('add_new_user') : t('edit_user')}</Text>
 
                         <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Username</Text>
+                            <Text style={styles.label}>{t('username')}</Text>
                             <TextInput
                                 style={[styles.input, modalMode === 'edit' && styles.disabledInput]}
                                 value={username}
                                 onChangeText={setUsername}
-                                placeholder="Enter username"
+                                placeholder={t('enter_username')}
                                 editable={modalMode === 'add'}
                             />
                         </View>
 
                         <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Password</Text>
+                            <Text style={styles.label}>{t('password')}</Text>
                             <TextInput
                                 style={styles.input}
                                 value={password}
                                 onChangeText={setPassword}
-                                placeholder="Enter password"
+                                placeholder={t('enter_password')}
                             />
                         </View>
 
                         <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Role</Text>
+                            <Text style={styles.label}>{t('account_type')}</Text>
                             <View style={styles.roleSelector}>
                                 {['citizen', 'rso', 'admin', 'compliance_officer'].map((r) => (
                                     <TouchableOpacity
@@ -405,7 +405,7 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
 
                         {role === 'rso' && (
                             <View style={styles.inputContainer}>
-                                <Text style={styles.label}>Zone (Required for RSO)</Text>
+                                <Text style={styles.label}>{t('zone_required_rso')}</Text>
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.zoneSelector}>
                                     {ZONES.map((z) => (
                                         <TouchableOpacity
@@ -422,10 +422,10 @@ export default function AdminUserManagementScreen({ onNavigate, onLogout }: Admi
 
                         <View style={styles.modalActions}>
                             <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}>
-                                <Text style={styles.cancelBtnText}>Cancel</Text>
+                                <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.saveBtn} onPress={handleSaveUser} disabled={formLoader}>
-                                <Text style={styles.saveBtnText}>{formLoader ? 'Saving...' : 'Save User'}</Text>
+                                <Text style={styles.saveBtnText}>{formLoader ? t('saving') : t('save_user')}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -483,9 +483,8 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         padding: 16,
         marginBottom: 12,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        flexDirection: 'column',
+        gap: 12,
         borderWidth: 1,
         borderColor: COLORS.warning,
     },
@@ -504,9 +503,17 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     userInfo: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
+    },
+    userInfoColumn: {
+        flex: 0,
+        width: '100%',
+    },
+    userDetails: {
+        flex: 1,
     },
     avatarContainer: {
         width: 40,
@@ -529,6 +536,7 @@ const styles = StyleSheet.create({
     roleTag: {
         flexDirection: 'row',
         alignItems: 'center',
+        flexWrap: 'wrap',
     },
     roleTagText: {
         fontSize: 12,
@@ -540,6 +548,7 @@ const styles = StyleSheet.create({
     },
     row: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
     },
     userRole: {
         fontSize: 12,
@@ -551,10 +560,13 @@ const styles = StyleSheet.create({
         color: COLORS.gray,
     },
     approveButton: {
+        flex: 1,
         backgroundColor: COLORS.success,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 10,
         borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     approveButtonText: {
         color: COLORS.white,
@@ -562,10 +574,13 @@ const styles = StyleSheet.create({
         fontSize: 12,
     },
     disapproveButton: {
+        flex: 1,
         backgroundColor: COLORS.danger,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 10,
         borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     disapproveButtonText: {
         color: COLORS.white,
@@ -574,7 +589,8 @@ const styles = StyleSheet.create({
     },
     actionButtons: {
         flexDirection: 'row',
-        gap: 8,
+        gap: 12,
+        width: '100%',
     },
     statusBadge: {
         backgroundColor: '#dcfce7',
@@ -611,6 +627,7 @@ const styles = StyleSheet.create({
     actionIcons: {
         flexDirection: 'row',
         gap: 12,
+        flexShrink: 0,
     },
     iconBtn: {
         padding: 4,
@@ -663,6 +680,7 @@ const styles = StyleSheet.create({
     roleSelector: {
         flexDirection: 'row',
         gap: 10,
+        flexWrap: 'wrap',
     },
     roleOption: {
         paddingVertical: 8,

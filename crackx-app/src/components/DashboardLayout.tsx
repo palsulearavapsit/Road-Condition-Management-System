@@ -202,9 +202,9 @@ export default function DashboardLayout({
                     animationType="fade"
                     onRequestClose={() => setNotifVisible(false)}
                 >
-                    <View style={styles.modalOverlay}>
+                    <View style={styles.notificationOverlay}>
                         <TouchableOpacity
-                            style={styles.backdrop}
+                            style={StyleSheet.absoluteFill}
                             activeOpacity={1}
                             onPress={() => setNotifVisible(false)}
                         />
@@ -315,6 +315,12 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0,0,0,0.5)',
         flexDirection: 'row',
     },
+    notificationOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     backdrop: {
         flex: 1,
     },
@@ -381,8 +387,6 @@ const styles = StyleSheet.create({
         shadowRadius: 20,
         elevation: 20,
         overflow: 'hidden',
-        alignSelf: 'center',
-        marginTop: '10%',
     },
     notifHeader: {
         flexDirection: 'row',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -15,7 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { COLORS, ZONES } from '../constants';
-import { ReportingMode, Report, Location as LocationType } from '../types';
+import { ReportingMode, Report, Location as LocationType, AIDetectionResult } from '../types';
 import locationService from '../services/location';
 import aiService from '../services/ai';
 import storageService from '../services/supabaseStorage';
@@ -26,24 +26,41 @@ import { MapComponent } from '../components/MapComponent';
 import DashboardLayout from '../components/DashboardLayout';
 import { checkConnectionWithMessage } from '../utils/networkCheck';
 
+
+
 interface ReportDamageScreenProps {
     onNavigate: (screen: string) => void;
     onBack: () => void;
     onSuccess: () => void;
     onLogout: () => void;
+    initialData?: {
+        photoUri: string;
+        detection: AIDetectionResult;
+    } | null;
 }
 
-export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLogout }: ReportDamageScreenProps) {
+export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLogout, initialData }: ReportDamageScreenProps) {
     const { t } = useTranslation();
-    const [step, setStep] = useState<'mode' | 'photo' | 'location' | 'ai' | 'confirm'>('mode');
+
+    // Initialize state based on initialData if present
+    const [step, setStep] = useState<'mode' | 'photo' | 'location' | 'ai' | 'confirm'>(
+        initialData ? 'confirm' : 'mode'
+    );
     const [reportingMode, setReportingMode] = useState<ReportingMode>('on-site');
-    const [photoUri, setPhotoUri] = useState<string>('');
+    const [photoUri, setPhotoUri] = useState<string>(initialData?.photoUri || '');
     const [location, setLocation] = useState<LocationType | null>(null);
     const [manualAddress, setManualAddress] = useState('');
     const [isEditingAddress, setIsEditingAddress] = useState(false);
-    const [aiResult, setAiResult] = useState<any>(null);
+    const [aiResult, setAiResult] = useState<any>(initialData?.detection || null);
     const [loading, setLoading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState('');
+
+    // If initialData is provided, we need to ensure location is captured too
+    useEffect(() => {
+        if (initialData) {
+            captureLocation();
+        }
+    }, []);
 
     const handleModeSelect = (mode: ReportingMode) => {
         setReportingMode(mode);
@@ -73,9 +90,8 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
 
             setPhotoUri(uri);
             setStep('location');
-            if (reportingMode === 'on-site') {
-                captureLocation();
-            }
+            // Always capture location to pre-fill coordinates/address
+            captureLocation();
         }
     };
 
@@ -103,9 +119,8 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
 
             setPhotoUri(uri);
             setStep('location');
-            if (reportingMode === 'on-site') {
-                captureLocation();
-            }
+            // Always capture location to pre-fill coordinates/address
+            captureLocation();
         }
     };
 
@@ -115,6 +130,13 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
             const loc = await locationService.getCurrentLocation();
             if (loc) {
                 setLocation(loc);
+                // If reporting from elsewhere and no address entered yet, pre-fill with current location address
+                if (reportingMode === 'from-elsewhere' && !manualAddress) {
+                    const addr = loc.address || loc.roadName || '';
+                    if (addr) {
+                        setManualAddress(addr);
+                    }
+                }
             } else {
                 Alert.alert(t('error'), 'Failed to get location. Please enable GPS.');
             }
@@ -138,10 +160,27 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
         setLoading(true);
         try {
             const result = await aiService.detectDamage(photoUri);
-            setAiResult(result);
-            setStep('confirm');
+
+            // Check if damage was actually detected or if confidence is extremely low
+            if (!result || (result.damageType === 'other' && result.confidence < 0.3)) {
+                Alert.alert(
+                    t('no_damage_detected'),
+                    t('ai_no_damage_msg'),
+                    [
+                        { text: t('retake_photo'), onPress: () => setStep('photo') },
+                        { text: t('cancel'), style: 'cancel', onPress: onBack }
+                    ]
+                );
+                // Reset step to photo so they can try again, don't proceed to confirm
+                // setStep('photo'); is redundant because we are not changing step to 'confirm'
+            } else {
+                setAiResult(result);
+                setStep('confirm');
+            }
         } catch (error) {
-            Alert.alert(t('error'), 'AI detection failed');
+            console.error('AI Detection Error:', error);
+            Alert.alert(t('error'), 'AI detection failed to process image.');
+            setStep('photo');
         } finally {
             setLoading(false);
         }
@@ -356,11 +395,11 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                                         {isEditingAddress && (
                                             <View style={{ marginBottom: 16 }}>
                                                 <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.dark, marginBottom: 8 }}>
-                                                    Edit Address Details
+                                                    {t('edit_address_details')}
                                                 </Text>
                                                 <TextInput
                                                     style={styles.input}
-                                                    placeholder="Enter road name, landmarks, or area details..."
+                                                    placeholder={t('enter_address_details')}
                                                     value={manualAddress}
                                                     onChangeText={setManualAddress}
                                                     multiline
@@ -370,7 +409,7 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
 
                                         <View style={{ marginBottom: 16 }}>
                                             <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.dark, marginBottom: 8 }}>
-                                                Detected Zone (Tap to Change):
+                                                {t('detected_zone')}
                                             </Text>
                                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
                                                 {ZONES.map((z) => (
@@ -421,7 +460,7 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                                 >
                                     <Ionicons name="navigate" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
                                     <Text style={[styles.buttonText, { color: COLORS.primary }]}>
-                                        Use Current GPS Location
+                                        {t('use_current_location')}
                                     </Text>
                                 </TouchableOpacity>
 
@@ -433,7 +472,7 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
 
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Enter details about location (Landmarks, Road Name)..."
+                                    placeholder={t('enter_location_details')}
                                     placeholderTextColor={COLORS.gray}
                                     value={manualAddress}
                                     onChangeText={setManualAddress}
@@ -442,7 +481,7 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
 
                                 <View style={{ marginBottom: 20 }}>
                                     <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.dark, marginBottom: 8 }}>
-                                        Select Zone:
+                                        {t('select_zone')}
                                     </Text>
                                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
                                         {ZONES.map((z) => {
@@ -507,7 +546,7 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                 {/* Step: Confirm */}
                 {step === 'confirm' && aiResult && (
                     <View style={styles.stepContainer}>
-                        <Text style={styles.stepTitle}>Review & Submit</Text>
+                        <Text style={styles.stepTitle}>{t('review_submit')}</Text>
                         <Image source={{ uri: photoUri }} style={styles.photoPreview} />
 
                         <View style={styles.resultCard}>

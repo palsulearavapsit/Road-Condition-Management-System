@@ -132,6 +132,10 @@ export default function ComplianceDashboardScreen({ onNavigate, onLogout }: Comp
                         <span class="stat-value" style="color: #16a34a">${stats.completed}</span>
                     </div>
                     <div class="stat-row">
+                        <span class="stat-label">Work In Progress</span>
+                        <span class="stat-value" style="color: #3b82f6">${stats.inProgress}</span>
+                    </div>
+                    <div class="stat-row">
                         <span class="stat-label">Pending Action</span>
                         <span class="stat-value" style="color: #ea580c">${stats.pending}</span>
                     </div>

@@ -122,6 +122,7 @@ class SupabaseStorageService {
                 isApproved: user.is_approved,
                 points: user.points || 0,
                 adminPointsPool: user.admin_points_pool || 0,
+                contractorId: user.contractor_id,
             }));
 
             // Update local cache
@@ -281,8 +282,13 @@ class SupabaseStorageService {
                     report_approved_for_points: report.reportApprovedForPoints,
                     repair_approved_for_points: report.repairApprovedForPoints,
                     rso_id: report.rsoId,
-                    citizen_rating: report.citizenRating,
                     citizen_feedback: report.citizenFeedback,
+                    assigned_department: report.assignedDepartment,
+                    origin_department: report.originDepartment || 'Engineering',
+                    root_cause: report.rootCause,
+                    utility_type: report.utilityType,
+                    contractor_id: report.contractorId,
+                    work_order_generated_at: report.workOrderGeneratedAt,
                 })
                 .select()
                 .single();
@@ -400,6 +406,12 @@ class SupabaseStorageService {
                 rsoId: report.rso_id,
                 citizenRating: report.citizen_rating,
                 citizenFeedback: report.citizen_feedback,
+                assignedDepartment: report.assigned_department,
+                originDepartment: report.origin_department,
+                rootCause: report.root_cause,
+                utilityType: report.utility_type,
+                contractorId: report.contractor_id,
+                workOrderGeneratedAt: report.work_order_generated_at,
             }));
 
             // Update local cache
@@ -461,6 +473,12 @@ class SupabaseStorageService {
                 rsoId: report.rso_id,
                 citizenRating: report.citizen_rating,
                 citizenFeedback: report.citizen_feedback,
+                assignedDepartment: report.assigned_department,
+                originDepartment: report.origin_department,
+                rootCause: report.root_cause,
+                utilityType: report.utility_type,
+                contractorId: report.contractor_id,
+                workOrderGeneratedAt: report.work_order_generated_at,
             }));
         } catch (error) {
             console.error('[Supabase] Error fetching reports by zone:', error);
@@ -502,6 +520,12 @@ class SupabaseStorageService {
                 rsoId: report.rso_id,
                 citizenRating: report.citizen_rating,
                 citizenFeedback: report.citizen_feedback,
+                assignedDepartment: report.assigned_department,
+                originDepartment: report.origin_department,
+                rootCause: report.root_cause,
+                utilityType: report.utility_type,
+                contractorId: report.contractor_id,
+                workOrderGeneratedAt: report.work_order_generated_at,
             }));
         } catch (error) {
             console.error('[Supabase] Error fetching reports by citizen:', error);
@@ -577,6 +601,117 @@ class SupabaseStorageService {
 
     async clearAll(): Promise<void> {
         await AsyncStorage.clear();
+    }
+
+
+    // ==================== CONTRACTORS ====================
+
+    /**
+     * Get contractors by zone
+     */
+    async getContractorsByZone(zone: string): Promise<any[]> {
+        try {
+            const { data, error } = await supabase
+                .from('contractors')
+                .select('*')
+                .eq('zone', zone)
+                .order('rating', { ascending: false });
+
+            if (error) throw error;
+
+            return data.map(c => ({
+                id: c.id,
+                name: c.name,
+                agencyName: c.agency_name,
+                licenseNumber: c.license_number,
+                rating: c.rating,
+                zone: c.zone
+            }));
+        } catch (error) {
+            console.error('[Supabase] Error fetching contractors:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Submit repair proof (Contractor specific functionality)
+     * Uses UPDATE instead of UPSERT to avoid RLS issues on immutable columns
+     */
+    async submitRepairProof(reportId: string, proofUri: string): Promise<void> {
+        try {
+            console.log(`[Supabase] Submitting repair proof for ${reportId}...`);
+            const { error } = await supabase
+                .from('reports')
+                .update({
+                    status: 'in-progress', // Use in-progress + proofUri to indicate verification pending (avoid enum errors)
+                    repair_proof_uri: proofUri,
+                    repair_completed_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', reportId);
+
+            if (error) throw error;
+            console.log(`[Supabase] Repair proof submitted successfully`);
+
+            // Update local cache
+            const reports = await this.getLocalReports();
+            const index = reports.findIndex(r => r.id === reportId);
+            if (index >= 0) {
+                reports[index] = {
+                    ...reports[index],
+                    status: 'in-progress',
+                    repairProofUri: proofUri,
+                    repairCompletedAt: new Date().toISOString()
+                };
+                await AsyncStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+            }
+        } catch (error) {
+            console.error('[Supabase] Error submitting repair proof:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Review report (RSO functionality)
+     * targeted update for status and proof verification
+     */
+    async reviewReport(reportId: string, status: 'completed' | 'in-progress', proofUri: string | null): Promise<void> {
+        try {
+            console.log(`[Supabase] RSO reviewing report ${reportId} -> ${status}`);
+            const updatePayload: any = {
+                status: status,
+                repair_proof_uri: proofUri,
+                updated_at: new Date().toISOString()
+            };
+
+            if (status === 'completed') {
+                updatePayload.repair_completed_at = new Date().toISOString();
+            }
+
+            const { error } = await supabase
+                .from('reports')
+                .update(updatePayload)
+                .eq('id', reportId);
+
+            if (error) throw error;
+            console.log(`[Supabase] Report review saved successfully`);
+
+            // Update local cache
+            const reports = await this.getLocalReports();
+            const index = reports.findIndex(r => r.id === reportId);
+            if (index >= 0) {
+                reports[index] = {
+                    ...reports[index],
+                    status: status,
+                    repairProofUri: proofUri as string, // Cast for local type
+                    repairCompletedAt: status === 'completed' ? new Date().toISOString() : reports[index].repairCompletedAt
+                };
+                await AsyncStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+            }
+        } catch (error) {
+            console.error('[Supabase] Error reviewing report:', error);
+            throw error;
+        }
     }
 }
 

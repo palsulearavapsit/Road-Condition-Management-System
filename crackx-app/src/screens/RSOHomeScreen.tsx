@@ -14,7 +14,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
-import { Report, User } from '../types';
+import { Report, User, Contractor, Department } from '../types';
 import storageService from '../services/supabaseStorage';
 import authService from '../services/supabaseAuth';
 import { formatDate, getSeverityColor } from '../utils';
@@ -26,20 +26,41 @@ import DashboardLayout from '../components/DashboardLayout';
 interface RSOHomeScreenProps {
     onNavigate: (screen: string) => void;
     onLogout: () => void;
+    onReviewReport: (report: Report) => void;
 }
 
-export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenProps) {
+export default function RSOHomeScreen({ onNavigate, onLogout, onReviewReport }: RSOHomeScreenProps) {
     const { t } = useTranslation();
     const [reports, setReports] = useState<Report[]>([]);
     const [sortBySeverity, setSortBySeverity] = useState(false);
     const [userZone, setUserZone] = useState<string>('');
     const [user, setUser] = useState<User | null>(null);
+    const [filterStatus, setFilterStatus] = useState<string>('all');
 
     // Completion Modal State
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [repairPhoto, setRepairPhoto] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
+
+    // Management Modal State
+    const [manageModalVisible, setManageModalVisible] = useState(false);
+    const [activeReport, setActiveReport] = useState<Report | null>(null);
+    const [contractors, setContractors] = useState<Contractor[]>([]);
+
+    // Proof View Modal State
+    const [proofModalVisible, setProofModalVisible] = useState(false);
+    const [viewProofUri, setViewProofUri] = useState<string | null>(null);
+
+    // Form State
+    const [selectedDept, setSelectedDept] = useState<Department>('Engineering');
+    const [selectedCause, setSelectedCause] = useState<string>('');
+    const [selectedContractor, setSelectedContractor] = useState<string>('');
+    const [utilityType, setUtilityType] = useState<string>('');
+
+    const DEPARTMENTS: Department[] = ['Engineering', 'Water Supply', 'Sanitation', 'Disaster Management', 'Traffic'];
+    const CAUSES = ['Monsoon/Rain', 'Heavy Vehicle Load', 'Utility Excavation', 'Poor Workmanship', 'Aging/Wear', 'Other'];
+    const UTILITIES = ['Telecom', 'Gas', 'Electric', 'Water', 'Sewage'];
 
     useEffect(() => {
         loadReports();
@@ -59,6 +80,10 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                 setUserZone(user.zone);
                 setUser(user);
                 let zoneReports = await storageService.getReportsByZone(user.zone);
+
+                // Fetch Contractors
+                const zoneContractors = await storageService.getContractorsByZone(user.zone);
+                setContractors(zoneContractors);
 
                 // Self-Healing: Deduplicate Reports by ID
                 const uniqueReports = new Map();
@@ -121,6 +146,69 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
         setModalVisible(true);
     };
 
+    const openManageModal = (report: Report) => {
+        setActiveReport(report);
+        setSelectedDept(report.assignedDepartment || 'Engineering');
+        setSelectedCause(report.rootCause || '');
+        setSelectedContractor(report.contractorId || '');
+        setUtilityType(report.utilityType || '');
+        setManageModalVisible(true);
+    };
+
+    const saveReportManagement = async () => {
+        if (!activeReport) return;
+
+        if (!selectedCause) {
+            Alert.alert(t('error'), 'Please select a Root Cause for verification.');
+            return;
+        }
+
+        /*
+        if (selectedCause === 'Utility Excavation' && !utilityType) {
+             Alert.alert(t('error'), 'Please select a Utility Type.');
+             return;
+        }
+        */
+
+        setUploading(true);
+        try {
+            const updatedReport = { ...activeReport };
+            updatedReport.assignedDepartment = selectedDept;
+            updatedReport.rootCause = selectedCause;
+            // Ensure we send NULL if empty string, but Supabase expects ID or null
+            updatedReport.contractorId = selectedContractor || undefined;
+            updatedReport.utilityType = utilityType || undefined;
+
+            // Force status change if contractor is assigned
+            if (selectedContractor) {
+                updatedReport.status = 'in-progress';
+                if (!updatedReport.workOrderGeneratedAt) {
+                    updatedReport.workOrderGeneratedAt = new Date().toISOString();
+                }
+            }
+
+            console.log('[RSO] Updating report:', updatedReport); // Debug log
+
+            await storageService.saveReport(updatedReport);
+
+            // Optimistic Update: Update local state immediately
+            setReports(prevReports =>
+                prevReports.map(r => r.id === updatedReport.id ? updatedReport : r)
+            );
+
+            setManageModalVisible(false);
+            Alert.alert(t('success'), 'Report updated successfully');
+
+            // Reload to be sure
+            loadReports();
+        } catch (error) {
+            console.error('Error updating report:', error);
+            Alert.alert(t('error'), 'Failed to update report');
+        } finally {
+            setUploading(false);
+        }
+    };
+
     // takeRepairPhoto function removed in favor of direct buttons in UI
 
 
@@ -145,6 +233,12 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
             console.log('Error opening camera:', error);
             Alert.alert('Error', 'Could not open camera.');
         }
+    };
+
+    const openProofModal = (uri: string) => {
+        if (!uri) return;
+        setViewProofUri(uri);
+        setProofModalVisible(true);
     };
 
     const pickFromGallery = async () => {
@@ -213,16 +307,20 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
     const stats = {
         total: reports.length,
         pending: reports.filter(r => r.status === 'pending').length,
-        inProgress: reports.filter(r => r.status === 'in-progress').length,
+        inProgress: reports.filter(r => r.status === 'in-progress' && !r.repairProofUri).length,
         completed: reports.filter(r => r.status === 'completed').length,
+        verification: reports.filter(r => r.status === 'verification-pending' || (r.status === 'in-progress' && r.repairProofUri)).length,
     };
+
+    // verifyContractorWork removed - moved to RSOReviewScreen
+
 
     return (
         <DashboardLayout
             title={`${t('rso_dashboard')} - ${userZone.toUpperCase()}`}
             role="rso"
-            activeRoute="Dashboard"
-            onNavigate={onNavigate}
+            activeRoute="Assigned"
+            onNavigate={(screen) => onNavigate(screen)}
             onLogout={handleLogout}
         >
             <View style={styles.walletBar}>
@@ -232,24 +330,53 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
                 {/* Stats */}
                 <View style={styles.statsCard}>
-                    <View style={styles.statItem}>
+                    <TouchableOpacity
+                        style={[styles.statItem, filterStatus === 'all' && styles.activeStatItem]}
+                        onPress={() => setFilterStatus('all')}
+                    >
                         <Text style={styles.statValue}>{stats.total}</Text>
-                        <Text style={styles.statLabel}>{t('total')}</Text>
-                    </View>
+                        <Text style={[styles.statLabel, filterStatus === 'all' && styles.activeStatLabel]}>{t('total')}</Text>
+                    </TouchableOpacity>
                     <View style={styles.divider} />
-                    <View style={styles.statItem}>
+                    <TouchableOpacity
+                        style={[styles.statItem, filterStatus === 'pending' && styles.activeStatItem]}
+                        onPress={() => setFilterStatus('pending')}
+                    >
                         <Text style={[styles.statValue, { color: COLORS.warning }]}>
                             {stats.pending}
                         </Text>
-                        <Text style={styles.statLabel}>{t('pending')}</Text>
-                    </View>
+                        <Text style={[styles.statLabel, filterStatus === 'pending' && styles.activeStatLabel]}>{t('pending')}</Text>
+                    </TouchableOpacity>
                     <View style={styles.divider} />
-                    <View style={styles.statItem}>
+                    <TouchableOpacity
+                        style={[styles.statItem, filterStatus === 'completed' && styles.activeStatItem]}
+                        onPress={() => setFilterStatus('completed')}
+                    >
                         <Text style={[styles.statValue, { color: COLORS.success }]}>
                             {stats.completed}
                         </Text>
-                        <Text style={styles.statLabel}>{t('done')}</Text>
-                    </View>
+                        <Text style={[styles.statLabel, filterStatus === 'completed' && styles.activeStatLabel]}>{t('done')}</Text>
+                    </TouchableOpacity>
+                    <View style={styles.divider} />
+                    <TouchableOpacity
+                        style={[styles.statItem, filterStatus === 'in-progress' && styles.activeStatItem]}
+                        onPress={() => setFilterStatus('in-progress')}
+                    >
+                        <Text style={[styles.statValue, { color: '#8b5cf6' }]}>
+                            {stats.inProgress}
+                        </Text>
+                        <Text style={[styles.statLabel, filterStatus === 'in-progress' && styles.activeStatLabel]}>In Progress</Text>
+                    </TouchableOpacity>
+                    <View style={styles.divider} />
+                    <TouchableOpacity
+                        style={[styles.statItem, filterStatus === 'verification-pending' && styles.activeStatItem]}
+                        onPress={() => setFilterStatus('verification-pending')}
+                    >
+                        <Text style={[styles.statValue, { color: COLORS.warning }]}>
+                            {stats.verification}
+                        </Text>
+                        <Text style={[styles.statLabel, filterStatus === 'verification-pending' && styles.activeStatLabel]}>Verify</Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Controls */}
@@ -266,91 +393,158 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
 
                 {/* Reports List */}
                 <View style={styles.reportsSection}>
-                    <Text style={styles.sectionTitle}>{t('assigned_complaints')}</Text>
-                    {reports.length === 0 ? (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <Text style={styles.sectionTitle}>{t('assigned_complaints')}</Text>
+                        {filterStatus !== 'all' && (
+                            <TouchableOpacity onPress={() => setFilterStatus('all')} style={{ backgroundColor: '#eee', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                                <Text style={{ fontSize: 12, color: '#666' }}>Clear Filter: {filterStatus}</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+
+                    {reports.filter(r => {
+                        if (filterStatus === 'all') return true;
+                        if (filterStatus === 'verification-pending') return r.status === 'verification-pending' || (r.status === 'in-progress' && !!r.repairProofUri);
+                        if (filterStatus === 'in-progress') return r.status === 'in-progress' && !r.repairProofUri;
+                        return r.status === filterStatus;
+                    }).length === 0 ? (
                         <View style={styles.emptyState}>
                             <Ionicons name="folder-open-outline" size={64} color={COLORS.gray} style={{ marginBottom: 16, opacity: 0.5 }} />
-                            <Text style={styles.emptyText}>{t('no_complaints_assigned')}</Text>
+                            <Text style={styles.emptyText}>
+                                {filterStatus === 'all' ? t('no_complaints_assigned') : `No reports with status: ${filterStatus}`}
+                            </Text>
                         </View>
                     ) : (
-                        reports.map((report) => (
-                            <View key={report.id} style={styles.reportCard}>
-                                {/* Report Photo */}
-                                {report.photoUri && (
-                                    <View style={styles.imageContainer}>
-                                        {Platform.OS === 'web' && report.photoUri.startsWith('file://') ? (
-                                            <View style={{ alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                                                <Ionicons name="phone-portrait-outline" size={48} color={COLORS.gray} />
-                                                <Text style={{ color: COLORS.gray, marginTop: 8 }}>{t('image_only_mobile')}</Text>
-                                            </View>
-                                        ) : (
-                                            <Image
-                                                source={{ uri: report.photoUri }}
-                                                style={styles.reportImage}
-                                                resizeMode="cover"
-                                            />
-                                        )}
-                                    </View>
-                                )}
+                        reports
+                            .filter(r => {
+                                if (filterStatus === 'all') return true;
+                                if (filterStatus === 'verification-pending') return r.status === 'verification-pending' || (r.status === 'in-progress' && !!r.repairProofUri);
+                                if (filterStatus === 'in-progress') return r.status === 'in-progress' && !r.repairProofUri;
+                                return r.status === filterStatus;
+                            })
+                            .map((report) => (
+                                <View key={report.id} style={styles.reportCard}>
+                                    {/* Report Photo */}
+                                    {report.photoUri && (
+                                        <View style={styles.imageContainer}>
+                                            {Platform.OS === 'web' && report.photoUri.startsWith('file://') ? (
+                                                <View style={{ alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                                                    <Ionicons name="phone-portrait-outline" size={48} color={COLORS.gray} />
+                                                    <Text style={{ color: COLORS.gray, marginTop: 8 }}>{t('image_only_mobile')}</Text>
+                                                </View>
+                                            ) : (
+                                                <Image
+                                                    source={{ uri: report.photoUri }}
+                                                    style={styles.reportImage}
+                                                    resizeMode="cover"
+                                                />
+                                            )}
+                                        </View>
+                                    )}
 
-                                <View style={styles.reportHeader}>
-                                    <View>
-                                        <Text style={styles.reportType}>
-                                            {report.aiDetection?.damageType ? t(report.aiDetection.damageType) : t('unknown')}
+                                    <View style={styles.reportHeader}>
+                                        <View>
+                                            <Text style={styles.reportType}>
+                                                {report.aiDetection?.damageType ? t(report.aiDetection.damageType) : t('unknown')}
+                                            </Text>
+                                            <Text style={styles.reportLocation}>
+                                                {report.location.roadName || report.location.address || t('unknown')}
+                                            </Text>
+                                        </View>
+                                        <View
+                                            style={[
+                                                styles.severityBadge,
+                                                {
+                                                    backgroundColor: getSeverityColor(
+                                                        report.aiDetection?.severity || 'low'
+                                                    ),
+                                                },
+                                            ]}
+                                        >
+                                            <Text style={styles.severityText}>
+                                                {report.aiDetection?.severity || 'N/A'}
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.reportMeta}>
+                                        <Text style={styles.reportDate}>
+                                            {formatDate(report.createdAt)}
                                         </Text>
-                                        <Text style={styles.reportLocation}>
-                                            {report.location.roadName || report.location.address || t('unknown')}
+                                        <Text
+                                            style={[
+                                                styles.statusBadge,
+                                                {
+                                                    color:
+                                                        report.status === 'completed'
+                                                            ? COLORS.success
+                                                            : report.status === 'in-progress'
+                                                                ? COLORS.secondary
+                                                                : COLORS.warning,
+                                                },
+                                            ]}
+                                        >
+                                            {report.status}
                                         </Text>
                                     </View>
-                                    <View
-                                        style={[
-                                            styles.severityBadge,
-                                            {
-                                                backgroundColor: getSeverityColor(
-                                                    report.aiDetection?.severity || 'low'
-                                                ),
-                                            },
-                                        ]}
-                                    >
-                                        <Text style={styles.severityText}>
-                                            {report.aiDetection?.severity || 'N/A'}
-                                        </Text>
-                                    </View>
+
+                                    {report.status !== 'completed' && (
+                                        <View style={styles.actionButtonsRow}>
+                                            <TouchableOpacity
+                                                style={[styles.actionButton, styles.manageButton]}
+                                                onPress={() => openManageModal(report)}
+                                            >
+                                                <Text style={styles.manageButtonText}>
+                                                    Verify & Assign
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+
+                                    {report.status === 'verification-pending' && (
+                                        <View style={styles.verificationActionContainer}>
+                                            <Text style={styles.verificationTitle}>Contractor submitted for review</Text>
+
+                                            {report.repairProofUri ? (
+                                                <TouchableOpacity
+                                                    style={{ marginBottom: 12, alignItems: 'center', backgroundColor: '#fff', padding: 12, borderRadius: 8, borderStyle: 'dashed', borderWidth: 1, borderColor: '#ccc' }}
+                                                    onPress={() => onReviewReport(report)}
+                                                >
+                                                    <Image
+                                                        source={{ uri: report.repairProofUri }}
+                                                        style={{ width: '100%', height: 180, borderRadius: 8, resizeMode: 'cover' }}
+                                                    />
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                                                        <Text style={{ color: COLORS.primary, fontWeight: 'bold', fontSize: 16 }}>🔍 Review Details</Text>
+                                                    </View>
+                                                </TouchableOpacity>
+                                            ) : (
+                                                <Text style={{ color: COLORS.danger, marginBottom: 8 }}>⚠️ No proof photo uploaded</Text>
+                                            )}
+
+                                            <TouchableOpacity
+                                                style={[styles.actionButton, { backgroundColor: COLORS.primary, marginTop: 4, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }]}
+                                                onPress={() => onReviewReport(report)}
+                                            >
+                                                <Ionicons name="clipboard-outline" size={20} color={COLORS.white} style={{ marginRight: 8 }} />
+                                                <Text style={{ color: COLORS.white, fontWeight: 'bold' }}>Review to Approve/Reject</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+
+                                    {report.status === 'completed' && report.repairProofUri && (
+                                        <View style={{ marginTop: 12, padding: 12, backgroundColor: '#f0fdf4', borderRadius: 8, borderLeftWidth: 4, borderLeftColor: COLORS.success }}>
+                                            <Text style={{ fontWeight: 'bold', color: '#166534', marginBottom: 8 }}>✅ Completed Repair Proof:</Text>
+                                            <TouchableOpacity onPress={() => openProofModal(report.repairProofUri!)}>
+                                                <Image
+                                                    source={{ uri: report.repairProofUri }}
+                                                    style={{ width: 100, height: 100, borderRadius: 8, backgroundColor: '#ddd' }}
+                                                />
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
                                 </View>
-
-                                <View style={styles.reportMeta}>
-                                    <Text style={styles.reportDate}>
-                                        {formatDate(report.createdAt)}
-                                    </Text>
-                                    <Text
-                                        style={[
-                                            styles.statusBadge,
-                                            {
-                                                color:
-                                                    report.status === 'completed'
-                                                        ? COLORS.success
-                                                        : report.status === 'in-progress'
-                                                            ? COLORS.secondary
-                                                            : COLORS.warning,
-                                            },
-                                        ]}
-                                    >
-                                        {report.status}
-                                    </Text>
-                                </View>
-
-                                {report.status !== 'completed' && (
-                                    <TouchableOpacity
-                                        style={styles.actionButton}
-                                        onPress={() => initiateCompletion(report)}
-                                    >
-                                        <Text style={styles.actionButtonText}>
-                                            {t('mark_as_completed')}
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
-                            </View>
-                        ))
+                            ))
                     )}
                 </View>
             </ScrollView>
@@ -418,7 +612,143 @@ export default function RSOHomeScreen({ onNavigate, onLogout }: RSOHomeScreenPro
                     </View>
                 </View>
             </Modal>
-        </DashboardLayout>
+
+            {/* Management Modal */}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={manageModalVisible}
+                onRequestClose={() => setManageModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            <Text style={styles.modalTitle}>Verify & Manage</Text>
+                            <Text style={styles.modalSubtitle}>Report #{activeReport?.id.slice(0, 8)}</Text>
+
+                            {/* Section 1: Root Cause (Mandatory) */}
+                            <Text style={styles.inputLabel}>Root Cause Analysis *</Text>
+                            <View style={styles.chipContainer}>
+                                {CAUSES.map(cause => (
+                                    <TouchableOpacity
+                                        key={cause}
+                                        style={[styles.chip, selectedCause === cause && styles.chipActive]}
+                                        onPress={() => setSelectedCause(cause)}
+                                    >
+                                        <Text style={[styles.chipText, selectedCause === cause && styles.chipTextActive]}>{cause}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            {selectedCause === 'Utility Excavation' && (
+                                <>
+                                    <Text style={styles.inputLabel}>Utility Type</Text>
+                                    <View style={styles.chipContainer}>
+                                        {UTILITIES.map(util => (
+                                            <TouchableOpacity
+                                                key={util}
+                                                style={[styles.chip, utilityType === util && styles.chipActive]}
+                                                onPress={() => setUtilityType(util)}
+                                            >
+                                                <Text style={[styles.chipText, utilityType === util && styles.chipTextActive]}>{util}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </>
+                            )}
+
+                            {/* Section 2: Department Routing */}
+                            <Text style={styles.inputLabel}>Forward to Department</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                                {DEPARTMENTS.map(dept => (
+                                    <TouchableOpacity
+                                        key={dept}
+                                        style={[styles.deptCard, selectedDept === dept && styles.deptCardActive]}
+                                        onPress={() => setSelectedDept(dept)}
+                                    >
+                                        <Ionicons
+                                            name={dept === 'Engineering' ? 'construct' : dept === 'Water Supply' ? 'water' : 'alert-circle'}
+                                            size={24}
+                                            color={selectedDept === dept ? COLORS.primary : COLORS.gray}
+                                        />
+                                        <Text style={[styles.deptText, selectedDept === dept && styles.deptTextActive]}>{dept}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+
+                            {/* Section 3: Contractor Assignment */}
+                            <Text style={styles.inputLabel}>Assign Contractor</Text>
+                            <ScrollView style={styles.contractorList}>
+                                {contractors.length === 0 ? (
+                                    <Text style={styles.emptyText}>No contractors found for this zone.</Text>
+                                ) : (
+                                    contractors.map(contractor => (
+                                        <TouchableOpacity
+                                            key={contractor.id}
+                                            style={[styles.contractorItem, selectedContractor === contractor.id && styles.contractorItemActive]}
+                                            onPress={() => setSelectedContractor(contractor.id)}
+                                        >
+                                            <View>
+                                                <Text style={styles.contractorName}>{contractor.agencyName}</Text>
+                                                <Text style={styles.contractorSub}>{contractor.name} • {contractor.rating}⭐</Text>
+                                            </View>
+                                            {selectedContractor === contractor.id && (
+                                                <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+                                            )}
+                                        </TouchableOpacity>
+                                    ))
+                                )}
+                            </ScrollView>
+
+                            <View style={[styles.modalActions, { marginTop: 24 }]}>
+                                <TouchableOpacity
+                                    style={[styles.modalButton, styles.modalButtonCancel]}
+                                    onPress={() => setManageModalVisible(false)}
+                                >
+                                    <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.modalButton, styles.modalButtonConfirm]}
+                                    onPress={saveReportManagement}
+                                    disabled={uploading}
+                                >
+                                    <Text style={styles.modalButtonTextConfirm}>
+                                        {uploading ? 'Saving...' : 'Update & Assign'}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                            <View style={{ height: 40 }} />
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Proof View Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={proofModalVisible}
+                onRequestClose={() => setProofModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { backgroundColor: 'black', minHeight: 'auto', padding: 0, justifyContent: 'center' }]}>
+                        <TouchableOpacity
+                            style={{ position: 'absolute', top: 40, right: 20, zIndex: 10, padding: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 }}
+                            onPress={() => setProofModalVisible(false)}
+                        >
+                            <Ionicons name="close" size={30} color="white" />
+                        </TouchableOpacity>
+
+                        {viewProofUri && (
+                            <Image
+                                source={{ uri: viewProofUri }}
+                                style={{ width: '100%', height: '100%', resizeMode: 'contain' }}
+                            />
+                        )}
+                    </View>
+                </View>
+            </Modal>
+        </DashboardLayout >
     );
 }
 
@@ -744,5 +1074,138 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: COLORS.dark,
         textAlign: 'center',
+    },
+    // Management Modal Styles
+    actionButtonsRow: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    manageButton: {
+        backgroundColor: COLORS.secondary,
+        borderWidth: 1,
+        borderColor: COLORS.primary,
+        flex: 1,
+    },
+    manageButtonText: {
+        color: COLORS.primary,
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    verificationActionContainer: {
+        marginTop: 12,
+        padding: 12,
+        backgroundColor: '#fff7ed',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#fed7aa'
+    },
+    verificationTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#9a3412',
+        marginBottom: 8
+    },
+    inputLabel: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: COLORS.dark,
+        marginBottom: 8,
+        marginTop: 16,
+    },
+    chipContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    chip: {
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: COLORS.light,
+        borderWidth: 1,
+        borderColor: COLORS.light,
+    },
+    chipActive: {
+        backgroundColor: '#eff6ff',
+        borderColor: COLORS.primary,
+    },
+    chipText: {
+        fontSize: 12,
+        color: COLORS.gray,
+        fontWeight: '600',
+    },
+    chipTextActive: {
+        color: COLORS.primary,
+    },
+    horizontalScroll: {
+        flexDirection: 'row',
+        marginBottom: 8,
+    },
+    deptCard: {
+        width: 100,
+        height: 80,
+        backgroundColor: COLORS.light,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 8,
+        padding: 8,
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+    deptCardActive: {
+        backgroundColor: '#eff6ff',
+        borderColor: COLORS.primary,
+    },
+    deptText: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: COLORS.gray,
+        textAlign: 'center',
+        marginTop: 4,
+    },
+    deptTextActive: {
+        color: COLORS.primary,
+    },
+    contractorList: {
+        maxHeight: 200,
+        backgroundColor: COLORS.light,
+        borderRadius: 12,
+        padding: 8,
+    },
+    contractorItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 12,
+        backgroundColor: COLORS.white,
+        borderRadius: 8,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+    contractorItemActive: {
+        backgroundColor: '#f0fdf4',
+        borderColor: COLORS.success,
+    },
+    contractorName: {
+        fontWeight: 'bold',
+        color: COLORS.dark,
+        fontSize: 14,
+    },
+    contractorSub: {
+        color: COLORS.gray,
+        fontSize: 12,
+        marginTop: 2,
+    },
+    activeStatItem: {
+        backgroundColor: '#eefff0', // Slight green/blue tint
+        borderRadius: 8,
+        paddingHorizontal: 4,
+    },
+    activeStatLabel: {
+        fontWeight: 'bold',
+        color: COLORS.primary,
+        textDecorationLine: 'underline'
     }
 });

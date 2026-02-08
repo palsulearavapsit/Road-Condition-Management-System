@@ -1,5 +1,15 @@
 // User Types
-export type UserRole = 'citizen' | 'rso' | 'admin' | 'compliance_officer';
+export type UserRole = 'citizen' | 'rso' | 'admin' | 'compliance_officer' | 'contractor';
+export type Department = 'Engineering' | 'Water Supply' | 'Sanitation' | 'Disaster Management' | 'Traffic';
+
+export interface Contractor {
+  id: string;
+  name: string;
+  agencyName: string;
+  licenseNumber?: string;
+  rating?: number;
+  zone?: string;
+}
 
 export interface User {
   id: string;
@@ -9,6 +19,7 @@ export interface User {
   isApproved?: boolean; // For RSO (requires admin approval)
   points?: number; // Petty wallet points
   adminPointsPool?: number; // For admin to distribute
+  contractorId?: string; // Links login to a specific Contractor Agency
 }
 
 
@@ -17,7 +28,7 @@ export interface User {
 export type ReportingMode = 'on-site' | 'from-elsewhere';
 export type DamageType = 'crack' | 'pothole' | 'other';
 export type SeverityLevel = 'low' | 'medium' | 'high';
-export type ReportStatus = 'pending' | 'in-progress' | 'completed';
+export type ReportStatus = 'pending' | 'in-progress' | 'verification-pending' | 'completed';
 export type SyncStatus = 'pending' | 'synced' | 'failed';
 
 export interface Location {
@@ -61,6 +72,14 @@ export interface Report {
   citizenRating?: number;
   citizenFeedback?: string;
   videoUri?: string; // URL to recorded video
+
+  // New Fields
+  assignedDepartment?: Department;
+  originDepartment?: Department;
+  rootCause?: string; // e.g., 'Monsoon/Rain', 'Heavy Vehicle Load', 'Utility Excavation'
+  utilityType?: string; // e.g., 'Telecom', 'Gas', 'Electric'
+  contractorId?: string;
+  workOrderGeneratedAt?: string;
 }
 
 // Zone Types

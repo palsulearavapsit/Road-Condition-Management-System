@@ -38,7 +38,7 @@ export default function Sidebar({ role, activeRoute, onNavigate, onLogout, onClo
             case 'rso':
                 return [
                     { id: 'Assigned', label: t('assigned_zone_feed'), icon: '📍' },
-
+                    { id: 'rso-review-list', label: 'Review Reports', icon: '📝' },
                     { id: 'Notifications', label: t('notifications'), icon: '🔔' },
                 ];
             case 'admin':
@@ -53,6 +53,11 @@ export default function Sidebar({ role, activeRoute, onNavigate, onLogout, onClo
             case 'compliance_officer':
                 return [
                     { id: 'Dashboard', label: 'Monitor RSOs', icon: '👮' },
+                    { id: 'Notifications', label: t('notifications'), icon: '🔔' },
+                ];
+            case 'contractor':
+                return [
+                    { id: 'Dashboard', label: 'My Work Orders', icon: '🛠️' },
                     { id: 'Notifications', label: t('notifications'), icon: '🔔' },
                 ];
             default:

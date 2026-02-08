@@ -15,6 +15,8 @@ import SignupScreen from './src/screens/SignupScreen';
 import LocationPermissionScreen from './src/screens/LocationPermissionScreen';
 import CitizenHomeScreen from './src/screens/CitizenHomeScreen';
 import RSOHomeScreen from './src/screens/RSOHomeScreen';
+import RSOReviewScreen from './src/screens/RSOReviewScreen';
+import RSOReviewListScreen from './src/screens/RSOReviewListScreen';
 import AdminHomeScreen from './src/screens/AdminHomeScreen';
 import ReportDamageScreen from './src/screens/ReportDamageScreen';
 import MyReportsScreen from './src/screens/MyReportsScreen';
@@ -25,8 +27,9 @@ import AdminFeedbackScreen from './src/screens/AdminFeedbackScreen';
 import NotificationScreen from './src/screens/NotificationScreen';
 
 import ComplianceDashboardScreen from './src/screens/ComplianceDashboardScreen';
+import ContractorHomeScreen from './src/screens/ContractorHomeScreen';
 import LiveDetectionScreen from './src/screens/LiveDetectionScreen';
-import { AIDetectionResult } from './src/types';
+import { AIDetectionResult, Report } from './src/types';
 
 type AppState =
   | 'loading'
@@ -35,6 +38,8 @@ type AppState =
   | 'location-permission'
   | 'citizen-home'
   | 'rso-home'
+  | 'rso-review-list'
+  | 'rso-review'
   | 'admin-home'
   | 'report-damage'
   | 'my-reports'
@@ -45,12 +50,14 @@ type AppState =
   | 'notifications'
 
   | 'compliance-dashboard'
+  | 'contractor-home'
   | 'live-detection';
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('loading');
   const [userRole, setUserRole] = useState<string>('');
   const [liveDetectionData, setLiveDetectionData] = useState<{ photoUri: string; detection: AIDetectionResult } | null>(null);
+  const [selectedReviewReport, setSelectedReviewReport] = useState<Report | null>(null);
 
   useEffect(() => {
     initialize();
@@ -141,6 +148,9 @@ export default function App() {
       case 'compliance_officer':
         setAppState('compliance-dashboard');
         break;
+      case 'contractor':
+        setAppState('contractor-home');
+        break;
       default:
         setAppState('citizen-home');
     }
@@ -163,8 +173,8 @@ export default function App() {
       case 'UploadProof': // RSO Sidebar Item
         navigateToHome(userRole);
         break;
-      case 'Analytics': // Admin Sidebar Item
-        navigateToHome(userRole);
+      case 'rso-review-list':
+        setAppState('rso-review-list'); // Actually switch to the new AppState
         break;
       case 'RoadHealth': // Admin Sidebar Item
         navigateToHome(userRole);
@@ -224,6 +234,8 @@ export default function App() {
       case 'signup':
         return <SignupScreen onBackToLogin={() => setAppState('login')} />;
 
+
+
       case 'location-permission':
         return <LocationPermissionScreen onPermissionGranted={handlePermissionGranted} />;
 
@@ -238,6 +250,37 @@ export default function App() {
       case 'rso-home':
         return (
           <RSOHomeScreen
+            onNavigate={handleNavigate}
+            onLogout={handleLogout}
+            onReviewReport={(report) => {
+              setSelectedReviewReport(report);
+              setAppState('rso-review');
+            }}
+          />
+        );
+
+      case 'rso-review-list':
+        return (
+          <RSOReviewListScreen
+            onNavigate={handleNavigate}
+            onLogout={handleLogout}
+            onReviewReport={(report) => {
+              setSelectedReviewReport(report);
+              setAppState('rso-review');
+            }}
+          />
+        );
+
+      case 'rso-review':
+        if (!selectedReviewReport) {
+          setAppState('rso-home');
+          return null;
+        }
+        return (
+          <RSOReviewScreen
+            report={selectedReviewReport}
+            onBack={() => setAppState('rso-review-list')}
+            onComplete={() => setAppState('rso-review-list')}
             onNavigate={handleNavigate}
             onLogout={handleLogout}
           />
@@ -291,6 +334,14 @@ export default function App() {
       case 'compliance-dashboard':
         return (
           <ComplianceDashboardScreen
+            onNavigate={handleNavigate}
+            onLogout={handleLogout}
+          />
+        );
+
+      case 'contractor-home':
+        return (
+          <ContractorHomeScreen
             onNavigate={handleNavigate}
             onLogout={handleLogout}
           />

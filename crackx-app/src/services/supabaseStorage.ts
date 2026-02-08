@@ -277,7 +277,7 @@ class SupabaseStorageService {
                     updated_at: new Date().toISOString(),
                     repair_proof_uri: report.repairProofUri,
                     repair_completed_at: report.repairCompletedAt,
-                    materials_used: report.materialsUsed,
+
                     report_approved_for_points: report.reportApprovedForPoints,
                     repair_approved_for_points: report.repairApprovedForPoints,
                     rso_id: report.rsoId,
@@ -394,7 +394,7 @@ class SupabaseStorageService {
                 updatedAt: report.updated_at,
                 repairProofUri: report.repair_proof_uri,
                 repairCompletedAt: report.repair_completed_at,
-                materialsUsed: report.materials_used,
+
                 reportApprovedForPoints: report.report_approved_for_points,
                 repairApprovedForPoints: report.repair_approved_for_points,
                 rsoId: report.rso_id,
@@ -455,7 +455,7 @@ class SupabaseStorageService {
                 updatedAt: report.updated_at,
                 repairProofUri: report.repair_proof_uri,
                 repairCompletedAt: report.repair_completed_at,
-                materialsUsed: report.materials_used,
+
                 reportApprovedForPoints: report.report_approved_for_points,
                 repairApprovedForPoints: report.repair_approved_for_points,
                 rsoId: report.rso_id,
@@ -496,7 +496,7 @@ class SupabaseStorageService {
                 updatedAt: report.updated_at,
                 repairProofUri: report.repair_proof_uri,
                 repairCompletedAt: report.repair_completed_at,
-                materialsUsed: report.materials_used,
+
                 reportApprovedForPoints: report.report_approved_for_points,
                 repairApprovedForPoints: report.repair_approved_for_points,
                 rsoId: report.rso_id,

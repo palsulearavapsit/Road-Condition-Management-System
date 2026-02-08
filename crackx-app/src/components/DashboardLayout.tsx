@@ -100,11 +100,7 @@ export default function DashboardLayout({
                             role={role}
                             activeRoute={activeRoute}
                             onNavigate={(route) => {
-                                if (route === 'Notifications') {
-                                    setNotifVisible(true);
-                                } else {
-                                    onNavigate(route);
-                                }
+                                onNavigate(route);
                             }}
                             onLogout={onLogout}
                         />
@@ -122,7 +118,7 @@ export default function DashboardLayout({
                             </TouchableOpacity>
                             <Text style={styles.headerTitle}>{title}</Text>
                             <TouchableOpacity
-                                onPress={() => setNotifVisible(true)}
+                                onPress={() => onNavigate('Notifications')}
                                 style={styles.notifButton}
                             >
                                 <Ionicons name="notifications-outline" size={24} color={COLORS.dark} />
@@ -140,7 +136,7 @@ export default function DashboardLayout({
                         <View style={styles.desktopHeader}>
                             <View style={{ flex: 1 }} />
                             <TouchableOpacity
-                                onPress={() => setNotifVisible(true)}
+                                onPress={() => onNavigate('Notifications')}
                                 style={styles.notifButton}
                             >
                                 <Ionicons name="notifications-outline" size={24} color={COLORS.dark} />
@@ -181,11 +177,7 @@ export default function DashboardLayout({
                                     activeRoute={activeRoute}
                                     onNavigate={(route) => {
                                         setSidebarVisible(false);
-                                        if (route === 'Notifications') {
-                                            setNotifVisible(true);
-                                        } else {
-                                            onNavigate(route);
-                                        }
+                                        onNavigate(route);
                                     }}
                                     onLogout={onLogout}
                                     onClose={() => setSidebarVisible(false)}
@@ -194,64 +186,6 @@ export default function DashboardLayout({
                         </View>
                     </Modal>
                 )}
-
-                {/* Notification Modal */}
-                <Modal
-                    visible={isNotifVisible}
-                    transparent={true}
-                    animationType="fade"
-                    onRequestClose={() => setNotifVisible(false)}
-                >
-                    <View style={styles.notificationOverlay}>
-                        <TouchableOpacity
-                            style={StyleSheet.absoluteFill}
-                            activeOpacity={1}
-                            onPress={() => setNotifVisible(false)}
-                        />
-                        <View style={styles.notifCenter}>
-                            <View style={styles.notifHeader}>
-                                <Text style={styles.notifTitle}>{t('notifications')}</Text>
-                                <TouchableOpacity onPress={markAllRead}>
-                                    <Text style={styles.markReadText}>{t('mark_all_read')}</Text>
-                                </TouchableOpacity>
-                            </View>
-
-                            <ScrollView style={styles.notifList}>
-                                {notifications.length === 0 ? (
-                                    <View style={styles.emptyNotifs}>
-                                        <Ionicons name="notifications-off-outline" size={48} color={COLORS.gray} style={{ opacity: 0.3 }} />
-                                        <Text style={styles.emptyNotifText}>{t('no_notifications')}</Text>
-                                    </View>
-                                ) : (
-                                    notifications.map((notif) => (
-                                        <View key={notif.id} style={[styles.notifItem, !notif.read && styles.unreadNotifItem]}>
-                                            <View style={styles.notifIconContainer}>
-                                                <Ionicons
-                                                    name={notif.title.includes('Repair') ? 'checkmark-circle' : 'alert-circle'}
-                                                    size={24}
-                                                    color={notif.title.includes('Repair') ? COLORS.success : COLORS.primary}
-                                                />
-                                            </View>
-                                            <View style={styles.notifContent}>
-                                                <Text style={styles.notifItemTitle}>{notif.title}</Text>
-                                                <Text style={styles.notifItemBody}>{notif.body}</Text>
-                                                <Text style={styles.notifItemTime}>{formatDate(notif.created_at)}</Text>
-                                            </View>
-                                            {!notif.read && <View style={styles.unreadDot} />}
-                                        </View>
-                                    ))
-                                )}
-                            </ScrollView>
-
-                            <TouchableOpacity
-                                style={styles.closeNotifBtn}
-                                onPress={() => setNotifVisible(false)}
-                            >
-                                <Text style={styles.closeNotifText}>{t('close')}</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
 
             </View>
         </SafeAreaView>

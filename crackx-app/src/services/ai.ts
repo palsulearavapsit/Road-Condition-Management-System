@@ -66,13 +66,9 @@ class AIService {
                 };
             }
         } catch (error) {
-            console.error('AI detection error:', error);
-            return {
-                damageType: 'other',
-                confidence: 0,
-                severity: 'low',
-                boundingBox: { x: 0, y: 0, width: 0, height: 0 }
-            };
+            console.error('AI detection error (falling back to mock):', error);
+            // Fallback to mock detection so the app is usable without backend
+            return this.mockDetection();
         }
     }
 

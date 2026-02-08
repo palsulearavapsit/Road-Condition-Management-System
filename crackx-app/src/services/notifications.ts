@@ -113,6 +113,7 @@ class NotificationService {
     }
 
     async scheduleReportSubmissionNotification(reportId: string) {
+        // 1. Local Push
         const id = await Notifications.scheduleNotificationAsync({
             content: {
                 title: "Report Submitted 🚀",
@@ -122,14 +123,16 @@ class NotificationService {
             trigger: null,
         });
 
-        await this.saveNotificationToStorage({
-            id,
-            title: "Report Submitted 🚀",
-            body: `Your report #${reportId.slice(-4)} has been submitted successfully`,
-            data: { reportId, type: 'submission' },
-            timestamp: new Date().toISOString(),
-            read: false,
-        });
+        // 2. Persist to Supabase (In-App Hub)
+        const user = await import('./supabaseAuth').then(m => m.default.getCurrentUser());
+        if (user) {
+            await this.createInAppNotification(
+                user.id,
+                "Report Submitted 🚀",
+                `Your report #${reportId.slice(-4)} has been submitted successfully`,
+                { reportId, type: 'submission' }
+            );
+        }
     }
 
     async scheduleRSOAssignmentNotification(reportId: string, address: string) {
@@ -142,14 +145,15 @@ class NotificationService {
             trigger: null,
         });
 
-        await this.saveNotificationToStorage({
-            id,
-            title: "New Task Assigned 🚧",
-            body: `New damage report at ${address}`,
-            data: { reportId, type: 'assignment' },
-            timestamp: new Date().toISOString(),
-            read: false,
-        });
+        const user = await import('./supabaseAuth').then(m => m.default.getCurrentUser());
+        if (user) {
+            await this.createInAppNotification(
+                user.id,
+                "New Task Assigned 🚧",
+                `New damage report at ${address}`,
+                { reportId, type: 'assignment' }
+            );
+        }
     }
 
     async scheduleCompletionNotification(reportId: string) {
@@ -162,22 +166,17 @@ class NotificationService {
             trigger: null,
         });
 
-        await this.saveNotificationToStorage({
-            id,
-            title: "Repair Verified ✅",
-            body: `Report #${reportId.slice(-4)} completed`,
-            data: { reportId, type: 'completion' },
-            timestamp: new Date().toISOString(),
-            read: false,
-        });
+        const user = await import('./supabaseAuth').then(m => m.default.getCurrentUser());
+        if (user) {
+            await this.createInAppNotification(
+                user.id,
+                "Repair Verified ✅",
+                `Report #${reportId.slice(-4)} completed`,
+                { reportId, type: 'completion' }
+            );
+        }
     }
 
-    /**
-     * Notify when report status changes
-     */
-    /**
-     * Create In-App Notification in Supabase
-     */
     async createInAppNotification(userId: string, title: string, body: string, data: any = {}) {
         if (!this.supabase) {
             console.error('[NotificationService] Supabase client not set');
@@ -203,9 +202,6 @@ class NotificationService {
         }
     }
 
-    /**
-     * Create notification for all admins
-     */
     async notifyAdmins(title: string, body: string, data: any = {}) {
         if (!this.supabase) return;
         try {
@@ -224,9 +220,6 @@ class NotificationService {
         }
     }
 
-    /**
-     * Create notification for a specific RSO zone
-     */
     async notifyZoneRSOs(zone: string, title: string, body: string, data: any = {}) {
         if (!this.supabase) return;
         try {
@@ -294,7 +287,8 @@ class NotificationService {
 
         const message = statusMessages[newStatus];
         if (message) {
-            const id = await Notifications.scheduleNotificationAsync({
+            // Local Push
+            await Notifications.scheduleNotificationAsync({
                 content: {
                     title: message.title,
                     body: message.body,
@@ -303,19 +297,21 @@ class NotificationService {
                 trigger: null,
             });
 
-            await this.saveNotificationToStorage({
-                id,
-                title: message.title,
-                body: message.body,
-                data: { reportId, type: 'status_change', status: newStatus },
-                timestamp: new Date().toISOString(),
-                read: false,
-            });
+            // Persist to Supabase
+            const user = await import('./supabaseAuth').then(m => m.default.getCurrentUser());
+            if (user) {
+                await this.createInAppNotification(
+                    user.id,
+                    message.title,
+                    message.body,
+                    { reportId, type: 'status_change', status: newStatus }
+                );
+            }
         }
     }
 
     async scheduleNotification(title: string, body: string, data: any = {}) {
-        const id = await Notifications.scheduleNotificationAsync({
+        await Notifications.scheduleNotificationAsync({
             content: {
                 title,
                 body,
@@ -324,14 +320,15 @@ class NotificationService {
             trigger: null,
         });
 
-        await this.saveNotificationToStorage({
-            id,
-            title,
-            body,
-            data,
-            timestamp: new Date().toISOString(),
-            read: false,
-        });
+        const user = await import('./supabaseAuth').then(m => m.default.getCurrentUser());
+        if (user) {
+            await this.createInAppNotification(
+                user.id,
+                title,
+                body,
+                data
+            );
+        }
     }
 
     /**

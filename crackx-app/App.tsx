@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initI18n } from './src/i18n';
 import { COLORS } from './src/constants';
@@ -21,7 +22,8 @@ import AdminUserManagementScreen from './src/screens/AdminUserManagementScreen';
 import AdminHeatmapScreen from './src/screens/AdminHeatmapScreen';
 import AdminPointsManagementScreen from './src/screens/AdminPointsManagementScreen';
 import AdminFeedbackScreen from './src/screens/AdminFeedbackScreen';
-import VendorPortalScreen from './src/screens/VendorPortalScreen';
+import NotificationScreen from './src/screens/NotificationScreen';
+
 import ComplianceDashboardScreen from './src/screens/ComplianceDashboardScreen';
 import LiveDetectionScreen from './src/screens/LiveDetectionScreen';
 import { AIDetectionResult } from './src/types';
@@ -40,7 +42,8 @@ type AppState =
   | 'admin-heatmap'
   | 'admin-feedback'
   | 'points-management'
-  | 'vendor-portal'
+  | 'notifications'
+
   | 'compliance-dashboard'
   | 'live-detection';
 
@@ -51,7 +54,29 @@ export default function App() {
 
   useEffect(() => {
     initialize();
-  }, []);
+
+    // Listener for when user taps a notification
+    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+      const { data } = response.notification.request.content;
+      console.log('Notification tapped:', data);
+
+      // If we are logged in, navigate
+      if (userRole) {
+        if (data && data.type === 'submission') {
+          // Usually navigate to MyReports or specific report
+          setAppState('my-reports');
+        } else if (data && data.type === 'assignment') {
+          // For RSO
+          setAppState('rso-home');
+        } else {
+          // Default to notification center
+          setAppState('notifications');
+        }
+      }
+    });
+
+    return () => subscription.remove();
+  }, [userRole]);
 
   const initialize = async () => {
     try {
@@ -156,9 +181,10 @@ export default function App() {
       case 'Points':
         setAppState('points-management');
         break;
-      case 'VendorPortal':
-        setAppState('vendor-portal');
+      case 'Notifications':
+        setAppState('notifications');
         break;
+
       case 'LiveDetection':
         setLiveDetectionData(null);
         setAppState('live-detection');
@@ -253,13 +279,14 @@ export default function App() {
             onLogout={handleLogout}
           />
         );
-      case 'vendor-portal':
+      case 'notifications':
         return (
-          <VendorPortalScreen
+          <NotificationScreen
             onNavigate={handleNavigate}
             onLogout={handleLogout}
           />
         );
+
 
       case 'compliance-dashboard':
         return (

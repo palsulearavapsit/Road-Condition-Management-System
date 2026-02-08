@@ -11,12 +11,7 @@ export interface User {
   adminPointsPool?: number; // For admin to distribute
 }
 
-// Material Inventory Tracking for RSO
-export interface MaterialUsage {
-  name: string;
-  quantity: string;
-  unit: string;
-}
+
 
 // Report Types
 export type ReportingMode = 'on-site' | 'from-elsewhere';
@@ -59,7 +54,7 @@ export interface Report {
   updatedAt: string;
   repairProofUri?: string;
   repairCompletedAt?: string;
-  materialsUsed?: MaterialUsage[];
+
   reportApprovedForPoints?: boolean;
   repairApprovedForPoints?: boolean;
   rsoId?: string;

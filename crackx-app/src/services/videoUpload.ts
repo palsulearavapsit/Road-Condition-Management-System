@@ -24,7 +24,7 @@ export const uploadVideoToSupabase = async (
         }
 
         const fileName = `${reportId}_${timestamp}.${fileExt}`;
-        const filePath = `report-videos/${fileName}`;
+        const filePath = `videos/${fileName}`;
         const contentType = `video/${fileExt}`;
 
         console.log('📝 Video details:', { fileName, filePath, contentType });
@@ -49,7 +49,7 @@ export const uploadVideoToSupabase = async (
         console.log('☁️ Uploading video to Supabase Storage...');
 
         const { data, error } = await supabase.storage
-            .from('report-videos') // Check if bucket exists, if not need to create or use a shared one
+            .from('report-images') // Use the existing 'report-images' bucket
             .upload(filePath, fileBody, {
                 contentType: contentType,
                 cacheControl: '3600',
@@ -64,7 +64,7 @@ export const uploadVideoToSupabase = async (
         console.log('✅ Video upload successful. Retrieving public URL...');
 
         const { data: urlData } = supabase.storage
-            .from('report-videos')
+            .from('report-images')
             .getPublicUrl(filePath);
 
         if (!urlData.publicUrl) {

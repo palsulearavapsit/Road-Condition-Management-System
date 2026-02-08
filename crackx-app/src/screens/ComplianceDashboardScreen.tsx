@@ -67,21 +67,20 @@ export default function ComplianceDashboardScreen({ onNavigate, onLogout }: Comp
     };
 
     const getRsoStats = (rso: User) => {
-        // Filter reports by RSO ID if assigned, OR by zone if unassigned but in RSO's zone
-        // For simplicity, let's assume RSOs work on reports in their zone.
-        const rsoZoneReports = reports.filter(r => r.location.zone === rso.zone);
+        // Filter reports by:
+        // 1. Zone match (if user is in a zone)
+        // 2. OR Explicit assignment (rsoId match)
+        const rsoWorkReports = reports.filter(r =>
+            (rso.zone && r.location.zone === rso.zone) ||
+            (r.rsoId === rso.id)
+        );
 
-        // Or if using rsoId specifically:
-        // const assignedReports = reports.filter(r => r.rsoId === rso.id); 
-        // But the requirement says "monitor all the rso's of each zone... have they completed all the work or not"
-        // So checking reports in their zone is probably safer if assignments aren't strict.
+        const total = rsoWorkReports.length;
+        const completed = rsoWorkReports.filter(r => r.status === 'completed').length;
+        const pending = rsoWorkReports.filter(r => r.status === 'pending').length;
+        const inProgress = rsoWorkReports.filter(r => r.status === 'in-progress').length;
 
-        const total = rsoZoneReports.length;
-        const completed = rsoZoneReports.filter(r => r.status === 'completed').length;
-        const pending = rsoZoneReports.filter(r => r.status === 'pending').length;
-        const inProgress = rsoZoneReports.filter(r => r.status === 'in-progress').length;
-
-        return { total, completed, pending, inProgress, reports: rsoZoneReports };
+        return { total, completed, pending, inProgress, reports: rsoWorkReports };
     };
 
     const openRsoDetails = (rso: User) => {
@@ -141,6 +140,44 @@ export default function ComplianceDashboardScreen({ onNavigate, onLogout }: Comp
                         <span class="stat-label">Completion Rate</span>
                         <span class="stat-value">${stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}%</span>
                     </div>
+                </div>
+
+                <h2>Detailed Work Logs</h2>
+                <div class="stats-box" style="padding: 0; overflow: hidden;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                        <thead>
+                            <tr style="background-color: #f1f5f9; text-align: left;">
+                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #475569;">Date</th>
+                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #475569;">Issue</th>
+                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #475569;">Status</th>
+                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #475569;">Location</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${stats.reports.map((r, index) => `
+                                <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${new Date(r.createdAt).toLocaleDateString()}</td>
+                                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${r.aiDetection?.damageType || 'Road Damage'}</td>
+                                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">
+                                        <span style="
+                                            background-color: ${r.status === 'completed' ? '#dcfce7' : '#ffedd5'};
+                                            color: ${r.status === 'completed' ? '#166534' : '#9a3412'};
+                                            padding: 4px 8px;
+                                            border-radius: 99px;
+                                            font-size: 0.85em;
+                                            font-weight: 600;
+                                            display: inline-block;
+                                        ">
+                                            ${r.status.toUpperCase()}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 0.85em; color: #64748b;">
+                                        ${r.location.roadName || r.location.address || `${r.location.latitude.toFixed(4)}, ${r.location.longitude.toFixed(4)}`}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
                 </div>
 
                 <div class="status-box">

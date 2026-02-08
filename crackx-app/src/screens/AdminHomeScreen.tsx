@@ -309,14 +309,7 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
                                         )}
 
                                         {/* Materials Used (Optional) */}
-                                        {report.materialsUsed && report.materialsUsed.length > 0 && (
-                                            <View style={{ marginTop: 8 }}>
-                                                <Text style={{ fontSize: 10, fontWeight: 'bold', color: COLORS.dark }}>Materials Used:</Text>
-                                                {report.materialsUsed.map((m, i) => (
-                                                    <Text key={i} style={{ fontSize: 10, color: COLORS.gray }}>• {m.name}: {m.quantity} {m.unit}</Text>
-                                                ))}
-                                            </View>
-                                        )}
+
                                     </View>
                                 )}
                                 <View style={styles.reportFooter}>

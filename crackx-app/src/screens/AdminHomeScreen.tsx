@@ -28,6 +28,8 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
     const [reports, setReports] = useState<Report[]>([]);
     const [zoneStats, setZoneStats] = useState<any>({});
     const [pendingRSOs, setPendingRSOs] = useState<any[]>([]);
+    const [rsoMap, setRsoMap] = useState<Record<string, string>>({});
+    const [contractorMap, setContractorMap] = useState<Record<string, string>>({});
 
     const [filter, setFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed'>('all');
@@ -41,10 +43,36 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
             const allReports = await storageService.getReports();
             setReports(allReports);
 
-            // Load Pending RSOs
+            // Load Users to find RSOs
             const users = await storageService.getRegisteredUsers();
+
+            // Pending RSOs for approval list
             const pending = users.filter(u => u.role === 'rso' && u.isApproved === false);
             setPendingRSOs(pending);
+
+            // Create Zone -> RSO Map
+            const approvedRSOs = users.filter(u => u.role === 'rso' && u.isApproved === true && u.zone);
+            const rsoMapping: Record<string, string> = {};
+
+            approvedRSOs.forEach(rso => {
+                const zone = rso.zone!;
+                if (rsoMapping[zone]) {
+                    rsoMapping[zone] += `, ${rso.username}`;
+                } else {
+                    rsoMapping[zone] = rso.username;
+                }
+            });
+            setRsoMap(rsoMapping);
+
+            // Load Contractors for all zones to build map
+            const contractorMapping: Record<string, string> = {};
+            for (const zone of ZONES) {
+                const contractors = await storageService.getContractorsByZone(zone.id);
+                contractors.forEach(c => {
+                    contractorMapping[c.id] = c.agencyName;
+                });
+            }
+            setContractorMap(contractorMapping);
 
             // Calculate zone-wise statistics
             const stats: any = {};
@@ -96,7 +124,7 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
 
     const displayedStats = {
         total: filteredReports.length,
-        pending: filteredReports.filter(r => r.status === 'pending').length,
+        pending: filteredReports.filter(r => r.status !== 'completed').length,
         completed: filteredReports.filter(r => r.status === 'completed').length,
     };
 
@@ -108,9 +136,14 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
     const listedReports = filteredReports.filter(r => {
         if (statusFilter === 'all') return true;
 
-        // Normalize status for comparison
         const normalizedStatus = (r.status || 'pending').toLowerCase().trim();
-        return normalizedStatus === statusFilter;
+
+        if (statusFilter === 'completed') {
+            return normalizedStatus === 'completed';
+        } else {
+            // 'pending' filter shows all active reports (pending, in-progress, verification-pending)
+            return normalizedStatus !== 'completed';
+        }
     });
 
     return (
@@ -313,7 +346,21 @@ export default function AdminHomeScreen({ onNavigate, onLogout }: AdminHomeScree
                                     </View>
                                 )}
                                 <View style={styles.reportFooter}>
-                                    <Text style={styles.reportDate}>{formatDate(report.createdAt)}</Text>
+                                    <View>
+                                        <Text style={styles.reportDate}>{formatDate(report.createdAt)}</Text>
+                                        {report.status !== 'completed' && (
+                                            <>
+                                                <Text style={{ fontSize: 10, color: COLORS.primary, marginTop: 4, fontWeight: '500' }}>
+                                                    Assigned RSO: {rsoMap[report.location.zone || ''] || 'Unassigned'}
+                                                </Text>
+                                                {report.contractorId && contractorMap[report.contractorId] && (
+                                                    <Text style={{ fontSize: 10, color: COLORS.secondary, marginTop: 2, fontWeight: '500' }}>
+                                                        Contractor: {contractorMap[report.contractorId]}
+                                                    </Text>
+                                                )}
+                                            </>
+                                        )}
+                                    </View>
                                     <Text style={[styles.syncBadge, { color: report.status === 'completed' ? COLORS.success : COLORS.warning }]}>
                                         {report.status}
                                     </Text>
@@ -725,6 +772,7 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: COLORS.light,
         paddingTop: 8,
+        alignItems: 'center',
     },
     reportDate: {
         fontSize: 12,

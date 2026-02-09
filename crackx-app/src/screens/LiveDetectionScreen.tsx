@@ -197,18 +197,26 @@ export default function LiveDetectionScreen({ onCapture, onClose }: LiveDetectio
     const submitAutoReport = async (videoUri: string) => {
         setIsUploading(true);
         try {
+            console.log('[LiveDetection] 📹 Starting video report submission...');
+            console.log('[LiveDetection] Video URI:', videoUri);
+
             // 1. Get User & Location
             const user = await authService.getCurrentUser();
             if (!user) throw new Error('User not logged in');
+            console.log('[LiveDetection] ✓ User verified:', user.username);
 
             const location = await locationService.getCurrentLocation();
             if (!location) throw new Error('Could not get location. Enable GPS.');
+            console.log('[LiveDetection] ✓ Location obtained:', location.zone);
 
             const reportId = generateId();
+            console.log('[LiveDetection] ✓ Report ID generated:', reportId);
 
             // 2. Upload Video
-            console.log('📤 Uploading video...');
+            console.log('[LiveDetection] 📤 Starting video upload to Supabase...');
             const videoUrl = await uploadVideoToSupabase(videoUri, reportId);
+            console.log('[LiveDetection] ✅ Video uploaded successfully!');
+            console.log('[LiveDetection] Video URL:', videoUrl);
 
             // 3. Generate Thumbnail (since we didn't scan during record)
             // Ideally we'd generate a thumbnail from video. 
@@ -241,34 +249,47 @@ export default function LiveDetectionScreen({ onCapture, onClose }: LiveDetectio
                 updatedAt: new Date().toISOString(),
             };
 
+            console.log('[LiveDetection] 💾 Saving report to database...');
             await storageService.saveReport(report);
+            console.log('[LiveDetection] ✅ Report saved successfully!');
 
+            setIsUploading(false);
             Alert.alert('Success', 'Report submitted! Our AI will analyze the video.', [
                 { text: 'OK', onPress: onClose }
             ]);
 
         } catch (error: any) {
-            console.error('Auto-submit failed:', error);
+            console.error('[LiveDetection] ❌ Upload failed:', error);
+            console.error('[LiveDetection] Error message:', error.message);
+
+            setIsUploading(false);
+
             Alert.alert(
                 'Upload Failed',
-                error.message || 'Could not submit report.',
+                error.message || 'Could not submit video report. Please try again.',
                 [
                     {
-                        text: 'Go Back',
+                        text: 'Cancel',
                         style: 'cancel',
-                        onPress: onClose
-                    },
-                    {
-                        text: 'Retry Camera',
                         onPress: () => {
+                            // Go back to picture mode, video is lost
                             setMode('picture');
                             setTimeout(() => setIsScanning(true), 500);
+                        }
+                    },
+                    {
+                        text: 'Retry Upload',
+                        onPress: () => {
+                            // Retry with the same video
+                            console.log('[LiveDetection] 🔄 Retrying upload...');
+                            submitAutoReport(videoUri);
                         }
                     }
                 ]
             );
         } finally {
-            setIsUploading(false);
+            // Note: setIsUploading is now in the catch block before alert
+            // to prevent stuck loading state
         }
     };
 

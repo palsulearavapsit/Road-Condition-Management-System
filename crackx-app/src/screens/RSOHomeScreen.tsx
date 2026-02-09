@@ -468,9 +468,16 @@ export default function RSOHomeScreen({ onNavigate, onLogout, onReviewReport }: 
                                     </View>
 
                                     <View style={styles.reportMeta}>
-                                        <Text style={styles.reportDate}>
-                                            {formatDate(report.createdAt)}
-                                        </Text>
+                                        <View>
+                                            <Text style={styles.reportDate}>
+                                                {formatDate(report.createdAt)}
+                                            </Text>
+                                            {report.contractorId && (
+                                                <Text style={{ fontSize: 11, color: COLORS.secondary, marginTop: 4, fontWeight: '600' }}>
+                                                    Contractor: {contractors.find(c => c.id === report.contractorId)?.agencyName || 'Unknown'}
+                                                </Text>
+                                            )}
+                                        </View>
                                         <Text
                                             style={[
                                                 styles.statusBadge,

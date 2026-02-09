@@ -19,7 +19,7 @@ app.add_middleware(
 
 # Initialize Model
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "model", "frozen_inference_graph_resnet.pb")
+MODEL_PATH = os.path.join(BASE_DIR, "model", "best.pt")
 detector = None
 
 @app.on_event("startup")
@@ -36,7 +36,7 @@ async def startup_event():
 
 @app.get("/health")
 async def health_check():
-    if detector and detector.sess:
+    if detector and detector.model:
         return {"status": "healthy", "message": "Model loaded"}
     return {"status": "unhealthy", "message": "Model not loaded"}
 
@@ -68,6 +68,8 @@ async def detect_damage(image: UploadFile = File(...)):
             return {"success": False, "message": "No significant damage detected or low confidence"}
             
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"Error processing request: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 

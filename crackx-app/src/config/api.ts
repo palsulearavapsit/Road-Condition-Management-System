@@ -33,7 +33,14 @@ const API_URLS = {
 
 // Current environment - CHANGE THIS BASED ON YOUR SETUP
 // Auto-detect Android to use Emulator URL (10.0.2.2)
-const CURRENT_ENV: Environment = 'local_network';
+let CURRENT_ENV: Environment = 'local_network';
+
+if (Platform.OS === 'web') {
+    CURRENT_ENV = 'development';
+} else if (Platform.OS === 'android' && !__DEV__) {
+    // Maybe an APK? Stick to local_network or production
+    CURRENT_ENV = 'local_network';
+}
 
 // Export configuration
 export const API_CONFIG = API_URLS[CURRENT_ENV];

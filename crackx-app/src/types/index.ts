@@ -26,7 +26,7 @@ export interface User {
 
 // Report Types
 export type ReportingMode = 'on-site' | 'from-elsewhere';
-export type DamageType = 'crack' | 'pothole' | 'other';
+export type DamageType = 'crack' | 'pothole' | 'other' | 'manual';
 export type SeverityLevel = 'low' | 'medium' | 'high';
 export type ReportStatus = 'pending' | 'in-progress' | 'verification-pending' | 'completed';
 export type SyncStatus = 'pending' | 'synced' | 'failed';

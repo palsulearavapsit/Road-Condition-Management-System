@@ -103,6 +103,11 @@ export default function LiveDetectionScreen({ onCapture, onClose }: LiveDetectio
     }, [isScanning, isRecording, lastScanTime, isUploading, mode]);
 
     const handleStartRecording = async () => {
+        if (Platform.OS === ('web' as any)) {
+            window.alert('Video recording is not currently supported on the Web version. Please use the mobile app for this feature.');
+            return;
+        }
+
         if (cameraRef.current) {
             try {
                 // 1. Switch to Video Mode explicitly
@@ -127,9 +132,14 @@ export default function LiveDetectionScreen({ onCapture, onClose }: LiveDetectio
                 console.log('🛑 Recording finished. Video URI:', video?.uri);
                 handleRecordingFinished(video?.uri);
 
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Recording error:', error);
-                Alert.alert('Error', 'Failed to record video. Please try again.');
+
+                if (Platform.OS === ('web' as any)) {
+                    window.alert(`Recording Failed: ${error.message || 'Unknown error'}`);
+                } else {
+                    Alert.alert('Error', `Failed to record video: ${error.message || 'Unknown error'}`);
+                }
 
                 // Reset state on error
                 isRecordingRef.current = false;

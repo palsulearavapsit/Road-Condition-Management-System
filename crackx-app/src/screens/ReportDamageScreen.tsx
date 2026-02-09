@@ -163,16 +163,44 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
 
             // Check if damage was actually detected or if confidence is extremely low
             if (!result || (result.damageType === 'other' && result.confidence < 0.3)) {
-                Alert.alert(
-                    t('no_damage_detected'),
-                    t('ai_no_damage_msg'),
-                    [
-                        { text: t('retake_photo'), onPress: () => setStep('photo') },
-                        { text: t('cancel'), style: 'cancel', onPress: onBack }
-                    ]
-                );
-                // Reset step to photo so they can try again, don't proceed to confirm
-                // setStep('photo'); is redundant because we are not changing step to 'confirm'
+                if (Platform.OS === 'web') {
+                    const confirmManual = window.confirm(
+                        `${t('no_damage_detected')}\n${t('ai_no_damage_msg')}\n\n${t('report_anyway_question', 'Do you want to report it manually?')}`
+                    );
+
+                    if (confirmManual) {
+                        setAiResult({
+                            damageType: 'manual',
+                            confidence: 1.0,
+                            severity: 'medium',
+                            boundingBox: { x: 0, y: 0, width: 0, height: 0 }
+                        });
+                        setStep('confirm');
+                    } else {
+                        setStep('photo');
+                    }
+                } else {
+                    Alert.alert(
+                        t('no_damage_detected'),
+                        t('ai_no_damage_msg'),
+                        [
+                            { text: t('retake_photo'), onPress: () => setStep('photo') },
+                            {
+                                text: 'Report Anyway',
+                                onPress: () => {
+                                    setAiResult({
+                                        damageType: 'manual',
+                                        confidence: 1.0,
+                                        severity: 'medium',
+                                        boundingBox: { x: 0, y: 0, width: 0, height: 0 }
+                                    });
+                                    setStep('confirm');
+                                }
+                            },
+                            { text: t('cancel'), style: 'cancel', onPress: onBack }
+                        ]
+                    );
+                }
             } else {
                 setAiResult(result);
                 setStep('confirm');
@@ -553,8 +581,68 @@ export default function ReportDamageScreen({ onNavigate, onBack, onSuccess, onLo
                             <Text style={styles.resultTitle}>{t('ai_detection')}</Text>
                             <View style={styles.resultRow}>
                                 <Text style={styles.resultLabel}>{t('damage_type')}:</Text>
-                                <Text style={styles.resultValue}>{aiResult.damageType}</Text>
+                                <View style={{ alignItems: 'flex-end' }}>
+                                    <Text style={styles.resultValue}>{aiResult.damageType}</Text>
+                                    <TouchableOpacity
+                                        onPress={() => setAiResult({ ...aiResult, isEditing: !aiResult.isEditing })}
+                                        style={{ marginTop: 4 }}
+                                    >
+                                        <Text style={{ color: COLORS.primary, fontSize: 12, fontWeight: '600' }}>
+                                            {t('change_detection', 'Change?')}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
+
+                            {/* Damage Type Selection (Visible when Change is clicked) */}
+                            {aiResult.isEditing && (
+                                <View style={{
+                                    flexDirection: 'row',
+                                    flexWrap: 'wrap',
+                                    justifyContent: 'flex-end',
+                                    marginBottom: 16,
+                                    marginTop: -8,
+                                    borderTopWidth: 1,
+                                    borderTopColor: COLORS.border,
+                                    paddingTop: 12
+                                }}>
+                                    {['crack', 'pothole', 'other'].map((type) => (
+                                        <TouchableOpacity
+                                            key={type}
+                                            style={{
+                                                backgroundColor: aiResult.damageType === type ? COLORS.primary : COLORS.secondary,
+                                                paddingHorizontal: 12,
+                                                paddingVertical: 6,
+                                                borderRadius: 16,
+                                                marginLeft: 8,
+                                                marginBottom: 8,
+                                                borderWidth: 1,
+                                                borderColor: aiResult.damageType === type ? COLORS.primary : COLORS.border
+                                            }}
+                                            onPress={() => {
+                                                setAiResult({
+                                                    ...aiResult,
+                                                    damageType: type,
+                                                    isEditing: false,
+                                                    // If user manually changes type, we might want to flag it or set confidence?
+                                                    // Keeping confidence as is or setting to 1.0 (manual override) could be valid.
+                                                    confidence: 1.0 // Assume manual override is 100% confident
+                                                });
+                                            }}
+                                        >
+                                            <Text style={{
+                                                color: aiResult.damageType === type ? COLORS.white : COLORS.gray,
+                                                fontSize: 12,
+                                                fontWeight: '600',
+                                                textTransform: 'capitalize'
+                                            }}>
+                                                {type}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            )}
+
                             <View style={styles.resultRow}>
                                 <Text style={styles.resultLabel}>{t('confidence')}:</Text>
                                 <Text style={styles.resultValue}>

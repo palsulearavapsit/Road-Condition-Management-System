@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -11,6 +11,7 @@ import {
     Platform,
     Modal
 } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, ZONES } from '../constants';
@@ -384,8 +385,27 @@ export default function ComplianceDashboardScreen({ onNavigate, onLogout }: Comp
                                     <View style={styles.imagesRow}>
                                         <View style={styles.imageWrapper}>
                                             <Text style={styles.imageLabel}>Before</Text>
-                                            <Image source={{ uri: report.photoUri }} style={styles.proofImage} />
-                                            <Text style={styles.timeText}>Reported: {new Date(report.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+
+                                            {/* Show Video if available, otherwise show Image */}
+                                            {report.videoUri ? (
+                                                <View style={styles.videoThumbnailContainer}>
+                                                    <Video
+                                                        source={{ uri: report.videoUri }}
+                                                        style={styles.proofImage}
+                                                        resizeMode={ResizeMode.COVER}
+                                                        shouldPlay={false}
+                                                        useNativeControls
+                                                    />
+                                                    <View style={styles.videoIndicator}>
+                                                        <Ionicons name="videocam" size={16} color="white" />
+                                                        <Text style={styles.videoIndicatorText}>Video</Text>
+                                                    </View>
+                                                </View>
+                                            ) : (
+                                                <Image source={{ uri: report.photoUri }} style={styles.proofImage} />
+                                            )}
+
+                                            <Text style={styles.timeText}>Reported: {new Date(report.createdAt).toLocaleDateString([], { hour: '2-digit', minute: '2-digit' })}</Text>
                                         </View>
 
                                         {report.status === 'completed' && report.repairProofUri ? (
@@ -673,5 +693,28 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         borderBottomLeftRadius: 8,
         borderBottomRightRadius: 8,
+    },
+    videoThumbnailContainer: {
+        width: '100%',
+        height: '100%',
+        position: 'relative',
+    },
+    videoIndicator: {
+        position: 'absolute',
+        top: 6,
+        right: 6,
+        backgroundColor: 'rgba(220, 38, 38, 0.9)',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 6,
+        paddingVertical: 3,
+        borderRadius: 4,
+        zIndex: 2,
+    },
+    videoIndicatorText: {
+        color: 'white',
+        fontSize: 10,
+        fontWeight: 'bold',
     },
 });

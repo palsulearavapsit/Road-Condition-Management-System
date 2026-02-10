@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
     View,
     Text,
@@ -10,6 +10,7 @@ import {
     Dimensions,
     Platform
 } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
 import { Report } from '../types';
@@ -29,6 +30,8 @@ const { width } = Dimensions.get('window');
 
 export default function RSOReviewScreen({ report, onBack, onComplete, onNavigate, onLogout }: RSOReviewScreenProps) {
     const [submitting, setSubmitting] = useState(false);
+    const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+    const videoRef = useRef<Video>(null);
 
     const handleVerify = async (approved: boolean) => {
         const title = approved ? 'Approve Work?' : 'Reject Work?';
@@ -89,6 +92,17 @@ export default function RSOReviewScreen({ report, onBack, onComplete, onNavigate
         }
     };
 
+    const toggleVideoPlayback = async () => {
+        if (videoRef.current) {
+            if (isVideoPlaying) {
+                await videoRef.current.pauseAsync();
+            } else {
+                await videoRef.current.playAsync();
+            }
+            setIsVideoPlaying(!isVideoPlaying);
+        }
+    };
+
     return (
         <DashboardLayout
             title="Review Repair Work"
@@ -115,11 +129,45 @@ export default function RSOReviewScreen({ report, onBack, onComplete, onNavigate
                 <View style={styles.comparisonContainer}>
                     <View style={styles.imageCard}>
                         <Text style={styles.imageLabel}>BEFORE (Reported)</Text>
-                        <Image
-                            source={{ uri: report.photoUri }}
-                            style={styles.image}
-                            resizeMode="cover"
-                        />
+
+                        {/* Show Video if available, otherwise show Image */}
+                        {report.videoUri ? (
+                            <View style={styles.videoContainer}>
+                                <Video
+                                    ref={videoRef}
+                                    source={{ uri: report.videoUri }}
+                                    style={styles.video}
+                                    resizeMode={ResizeMode.CONTAIN}
+                                    isLooping
+                                    onPlaybackStatusUpdate={(status) => {
+                                        if ('isPlaying' in status) {
+                                            setIsVideoPlaying(status.isPlaying);
+                                        }
+                                    }}
+                                />
+                                <TouchableOpacity
+                                    style={styles.videoPlayButton}
+                                    onPress={toggleVideoPlayback}
+                                >
+                                    <Ionicons
+                                        name={isVideoPlaying ? "pause-circle" : "play-circle"}
+                                        size={48}
+                                        color="white"
+                                    />
+                                </TouchableOpacity>
+                                <View style={styles.videoLabel}>
+                                    <Ionicons name="videocam" size={14} color="white" />
+                                    <Text style={styles.videoLabelText}>Video Report</Text>
+                                </View>
+                            </View>
+                        ) : (
+                            <Image
+                                source={{ uri: report.photoUri }}
+                                style={styles.image}
+                                resizeMode="cover"
+                            />
+                        )}
+
                         <Text style={styles.dateLabel}>{formatDate(report.createdAt)}</Text>
                     </View>
 
@@ -345,5 +393,44 @@ const styles = StyleSheet.create({
     },
     disabledButton: {
         opacity: 0.5,
-    }
+    },
+    videoContainer: {
+        width: '100%',
+        aspectRatio: 1,
+        borderRadius: 8,
+        marginVertical: 8,
+        backgroundColor: '#000',
+        position: 'relative',
+        overflow: 'hidden',
+    },
+    video: {
+        width: '100%',
+        height: '100%',
+    },
+    videoPlayButton: {
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: [{ translateX: -24 }, { translateY: -24 }],
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        borderRadius: 50,
+        padding: 8,
+    },
+    videoLabel: {
+        position: 'absolute',
+        top: 8,
+        left: 8,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 4,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    videoLabelText: {
+        color: 'white',
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
 });

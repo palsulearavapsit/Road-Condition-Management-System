@@ -10,6 +10,7 @@ import {
     Image,
     RefreshControl,
 } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
@@ -176,6 +177,34 @@ export default function CitizenHomeScreen({ onNavigate, onLogout }: CitizenHomeS
                                         return '';
                                     })()}
                                 </Text>
+
+                                {/* SHOW ORIGINAL REPORT - VIDEO OR IMAGE */}
+                                <View style={styles.repairProofContainer}>
+                                    <Text style={styles.repairLabel}>
+                                        📸 Original Report {report.videoUri ? '(Video)' : '(Photo)'}
+                                    </Text>
+                                    {report.videoUri ? (
+                                        <View style={styles.videoContainer}>
+                                            <Video
+                                                source={{ uri: report.videoUri }}
+                                                style={styles.repairImage}
+                                                resizeMode={ResizeMode.COVER}
+                                                shouldPlay={false}
+                                                useNativeControls
+                                            />
+                                            <View style={styles.videoIndicatorBadge}>
+                                                <Ionicons name="videocam" size={14} color="white" />
+                                                <Text style={styles.videoIndicatorText}>Video Report</Text>
+                                            </View>
+                                        </View>
+                                    ) : (
+                                        <Image
+                                            source={{ uri: report.photoUri }}
+                                            style={styles.repairImage}
+                                            resizeMode="cover"
+                                        />
+                                    )}
+                                </View>
 
                                 {/* SHOW REPAIR IMAGE IF COMPLETED */}
                                 {report.status === 'completed' && report.repairProofUri && (
@@ -431,5 +460,29 @@ const styles = StyleSheet.create({
         height: 180,
         borderRadius: 8,
         backgroundColor: '#f1f5f9',
+    },
+    videoContainer: {
+        position: 'relative',
+        width: '100%',
+        borderRadius: 8,
+        overflow: 'hidden',
+    },
+    videoIndicatorBadge: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: 'rgba(220, 38, 38, 0.9)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        zIndex: 10,
+    },
+    videoIndicatorText: {
+        color: 'white',
+        fontSize: 11,
+        fontWeight: 'bold',
     },
 });

@@ -36,6 +36,25 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             link.href = 'https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css';
             document.head.appendChild(link);
         }
+
+        // Inject custom marker styles
+        const styleId = 'custom-marker-styles';
+        if (!document.getElementById(styleId)) {
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.textContent = `
+                .custom-marker {
+                    display: block !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                    position: relative !important;
+                }
+                .mapboxgl-marker {
+                    z-index: 1000 !important;
+                }
+            `;
+            document.head.appendChild(style);
+        }
     }, []);
 
     // 2. Initialize Map
@@ -68,6 +87,11 @@ export const MapComponent: React.FC<MapComponentProps> = ({
     useEffect(() => {
         if (!map.current) return;
 
+        // Wait for map to be fully loaded
+        map.current.on('load', () => {
+            console.log('[MapComponent.web] Map loaded, adding markers');
+        });
+
         // Fly to new center if changed
         try {
             map.current.flyTo({
@@ -79,44 +103,72 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             console.log('Mapbox fly error (ignore during init):', e);
         }
 
-        // Clear existing markers (basic clean way for React update cycle)
-        const markersOnMap = document.getElementsByClassName('mapboxgl-marker');
-        // Convert HTMLCollection to array to iterate safely
-        Array.from(markersOnMap).forEach(marker => marker.remove());
+        // Small delay to ensure map is ready
+        setTimeout(() => {
+            // Clear existing markers (basic clean way for React update cycle)
+            const markersOnMap = document.getElementsByClassName('mapboxgl-marker');
+            // Convert HTMLCollection to array to iterate safely
+            Array.from(markersOnMap).forEach(marker => marker.remove());
 
-        // Add Markers
-        if (markers && markers.length > 0) {
-            markers.forEach(m => {
+            // Add Markers
+            if (markers && markers.length > 0) {
+                console.log(`[MapComponent.web] Adding ${markers.length} markers`);
+                markers.forEach((m, index) => {
+                    const el = document.createElement('div');
+                    el.className = 'custom-marker';
+                    el.style.backgroundColor = m.color;
+                    el.style.width = '16px';  // Reduced size for better clustering
+                    el.style.height = '16px';
+                    el.style.borderRadius = '50%';
+                    el.style.border = '2px solid white';
+                    el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.4)';
+                    el.style.cursor = 'pointer';
+                    el.style.transition = 'transform 0.2s';
+                    el.style.zIndex = '1000';
+
+                    // Add hover effect
+                    el.addEventListener('mouseenter', () => {
+                        el.style.transform = 'scale(1.5)';
+                        el.style.zIndex = '2000';
+                    });
+                    el.addEventListener('mouseleave', () => {
+                        el.style.transform = 'scale(1)';
+                        el.style.zIndex = '1000';
+                    });
+
+                    // Add slight random offset to prevent perfect overlap
+                    // (only for display, doesn't change actual coordinates)
+                    const offsetLat = (Math.random() - 0.5) * 0.0001;
+                    const offsetLng = (Math.random() - 0.5) * 0.0001;
+
+                    const marker = new mapboxgl.Marker(el)
+                        .setLngLat([m.longitude + offsetLng, m.latitude + offsetLat])
+                        .addTo(map.current!);
+
+                    console.log(`[MapComponent.web] Marker ${index + 1}: ${m.color} at [${m.latitude}, ${m.longitude}]`);
+                });
+            } else {
+                // Default User Marker
+                console.log('[MapComponent.web] Adding default marker');
                 const el = document.createElement('div');
-                el.className = 'marker';
-                el.style.backgroundColor = m.color;
+                el.className = 'custom-marker';
+                el.style.backgroundColor = '#f97316'; // COLORS.primary
                 el.style.width = '20px';
                 el.style.height = '20px';
                 el.style.borderRadius = '50%';
-                el.style.border = '2px solid white';
-                el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+                el.style.border = '3px solid white';
+                el.style.boxShadow = '0 3px 6px rgba(0,0,0,0.4)';
+                el.style.cursor = 'pointer';
+                el.style.zIndex = '1000';
 
                 new mapboxgl.Marker(el)
-                    .setLngLat([m.longitude, m.latitude])
+                    .setLngLat([longitude, latitude])
                     .addTo(map.current!);
-            });
-        } else {
-            // Default User Marker
-            const el = document.createElement('div');
-            el.className = 'marker';
-            el.style.backgroundColor = '#f97316'; // COLORS.primary
-            el.style.width = '24px';
-            el.style.height = '24px';
-            el.style.borderRadius = '50%';
-            el.style.border = '3px solid white';
-            el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
-
-            new mapboxgl.Marker(el)
-                .setLngLat([longitude, latitude])
-                .addTo(map.current!);
-        }
+            }
+        }, 300); // Small delay to ensure map is ready
 
     }, [latitude, longitude, markers]);
+
 
     // 4. Handle Click for Location Selection
     useEffect(() => {
@@ -152,18 +204,18 @@ export const MapComponent: React.FC<MapComponentProps> = ({
 
 const styles = StyleSheet.create({
     container: {
-        height: 300,
+        flex: 1,
         width: '100%',
         borderRadius: 12,
         overflow: 'hidden',
-        marginTop: 16,
-        marginBottom: 16,
         borderWidth: 1,
         borderColor: '#e2e8f0',
-        position: 'relative'
+        position: 'relative',
+        minHeight: 300, // Minimum height fallback
     },
     loading: {
-        height: 300,
+        flex: 1,
+        minHeight: 300,
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: '#f1f5f9',

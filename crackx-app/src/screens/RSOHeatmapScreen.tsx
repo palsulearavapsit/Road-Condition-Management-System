@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -11,33 +11,43 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
-import { Report } from '../types';
+import { Report, User } from '../types';
 import storageService from '../services/supabaseStorage';
+import authService from '../services/supabaseAuth';
 import DashboardLayout from '../components/DashboardLayout';
 import { MapComponent } from '../components/MapComponent';
 import { formatDate } from '../utils';
 
-interface AdminHeatmapScreenProps {
+interface RSOHeatmapScreenProps {
     onNavigate: (screen: string) => void;
     onLogout: () => void;
 }
 
-export default function AdminHeatmapScreen({ onNavigate, onLogout }: AdminHeatmapScreenProps) {
+export default function RSOHeatmapScreen({ onNavigate, onLogout }: RSOHeatmapScreenProps) {
     const { t } = useTranslation();
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<User | null>(null);
+    const [userZone, setUserZone] = useState<string>('');
     const [selectedSeverity, setSelectedSeverity] = useState<'all' | 'high' | 'medium' | 'low'>('all');
 
-    React.useEffect(() => {
-        console.log('[Admin Heatmap] Screen mounted, loading data...');
+    useEffect(() => {
+        console.log('[RSO Heatmap] Screen mounted, loading data...');
         loadData();
     }, []);
 
     const loadData = async () => {
         setLoading(true);
         try {
-            const allReports = await storageService.getReports();
-            setReports(allReports);
+            const currentUser = await authService.getCurrentUser();
+            if (currentUser && currentUser.zone) {
+                setUser(currentUser);
+                setUserZone(currentUser.zone);
+
+                // Get reports for RSO's specific zone
+                const zoneReports = await storageService.getReportsByZone(currentUser.zone);
+                setReports(zoneReports);
+            }
         } catch (error) {
             console.error('Failed to load heatmap data:', error);
             Alert.alert('Error', 'Failed to load heatmap data');
@@ -66,7 +76,7 @@ export default function AdminHeatmapScreen({ onNavigate, onLogout }: AdminHeatma
             r.aiDetection?.severity === 'medium' ? COLORS.warning : '#fbbf24'
     }));
 
-    // Get center point (average of all coordinates or default)
+    // Get center point (average of all coordinates or default to zone center)
     const getMapCenter = () => {
         if (mapMarkers.length === 0) {
             return { latitude: 17.6599, longitude: 75.9064 }; // Default Solapur
@@ -91,8 +101,8 @@ export default function AdminHeatmapScreen({ onNavigate, onLogout }: AdminHeatma
 
     return (
         <DashboardLayout
-            title="All Zones - Disaster Heatmap"
-            role="admin"
+            title={`${t('Zone')} ${userZone.toUpperCase()} - Heatmap`}
+            role="rso"
             activeRoute="Heatmap"
             onNavigate={onNavigate}
             onLogout={onLogout}
@@ -104,9 +114,9 @@ export default function AdminHeatmapScreen({ onNavigate, onLogout }: AdminHeatma
             ) : (
                 <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
                     <View style={styles.mapHeader}>
-                        <Text style={styles.mapTitle}>City-Wide Vulnerability Map</Text>
+                        <Text style={styles.mapTitle}>Zone {userZone.toUpperCase()} Heat Map</Text>
                         <Text style={styles.mapSubtitle}>
-                            High concentration areas of road damage across all zones
+                            Visual overview of road damage reports in your zone
                         </Text>
                     </View>
 
@@ -207,43 +217,84 @@ export default function AdminHeatmapScreen({ onNavigate, onLogout }: AdminHeatma
                         )}
                     </View>
 
-                    {/* Critical Hotspots Section */}
+                    {/* Hotspots List */}
                     <View style={styles.hotspotSection}>
                         <Text style={styles.sectionTitle}>
-                            Critical Hotspots
-                            <Text style={styles.countBadge}> ({highSeverityReports.length})</Text>
+                            {selectedSeverity === 'all' ? 'All Reports' : `${selectedSeverity.charAt(0).toUpperCase() + selectedSeverity.slice(1)} Severity Reports`}
+                            <Text style={styles.countBadge}> ({filteredReports.length})</Text>
                         </Text>
 
-                        {highSeverityReports.length === 0 ? (
+                        {filteredReports.length === 0 ? (
                             <View style={styles.emptyState}>
-                                <Ionicons name="checkmark-circle-outline" size={48} color={COLORS.success} />
+                                <Ionicons name="folder-open-outline" size={48} color={COLORS.gray} />
                                 <Text style={styles.emptyText}>
-                                    No critical hotspots detected
+                                    No {selectedSeverity === 'all' ? '' : selectedSeverity} reports found
                                 </Text>
                             </View>
                         ) : (
-                            highSeverityReports.slice(0, 10).map(report => (
-                                <View key={report.id} style={styles.hotspotCard}>
-                                    <View style={[styles.hotspotIcon, { backgroundColor: COLORS.danger + '20' }]}>
-                                        <Ionicons name="warning" size={24} color={COLORS.danger} />
+                            filteredReports.map(report => {
+                                const severityColor =
+                                    report.aiDetection?.severity === 'high' ? COLORS.danger :
+                                        report.aiDetection?.severity === 'medium' ? COLORS.warning : '#fbbf24';
+
+                                return (
+                                    <View key={report.id} style={styles.hotspotCard}>
+                                        <View style={[styles.hotspotIcon, { backgroundColor: severityColor + '20' }]}>
+                                            <Ionicons
+                                                name={
+                                                    report.aiDetection?.severity === 'high' ? 'warning' :
+                                                        report.aiDetection?.severity === 'medium' ? 'alert-circle' : 'information-circle'
+                                                }
+                                                size={24}
+                                                color={severityColor}
+                                            />
+                                        </View>
+                                        <View style={styles.hotspotInfo}>
+                                            <Text style={styles.hotspotRoad}>
+                                                {report.location?.roadName || 'Unknown Road'}
+                                            </Text>
+                                            <Text style={styles.hotspotAddress}>
+                                                {report.location?.address || 'No address'}
+                                            </Text>
+                                            <View style={styles.hotspotMeta}>
+                                                <Text style={styles.hotspotDate}>
+                                                    {formatDate(report.createdAt)}
+                                                </Text>
+                                                <View style={[styles.statusChip, { backgroundColor: getStatusColor(report.status) + '20' }]}>
+                                                    <Text style={[styles.statusText, { color: getStatusColor(report.status) }]}>
+                                                        {report.status}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        </View>
+                                        <View style={[styles.severityBadge, { backgroundColor: severityColor }]}>
+                                            <Text style={styles.severityText}>
+                                                {report.aiDetection?.severity?.toUpperCase() || 'N/A'}
+                                            </Text>
+                                        </View>
                                     </View>
-                                    <View style={styles.hotspotInfo}>
-                                        <Text style={styles.hotspotRoad}>
-                                            {report.location?.roadName || 'Unknown Road'}
-                                        </Text>
-                                        <Text style={styles.hotspotZone}>
-                                            Zone: {report.location?.zone?.toUpperCase() || 'N/A'}
-                                        </Text>
-                                        <Text style={styles.hotspotDate}>
-                                            {formatDate(report.createdAt)}
-                                        </Text>
-                                    </View>
-                                    <View style={[styles.severityBadge, { backgroundColor: COLORS.danger }]}>
-                                        <Text style={styles.severityText}>HIGH</Text>
-                                    </View>
-                                </View>
-                            ))
+                                );
+                            })
                         )}
+                    </View>
+
+                    {/* Status Breakdown */}
+                    <View style={styles.statusBreakdown}>
+                        <Text style={styles.sectionTitle}>Status Overview</Text>
+                        <View style={styles.statusGrid}>
+                            <View style={[styles.statusCard, { borderLeftColor: COLORS.warning }]}>
+                                <Text style={styles.statusCount}>{stats.pending}</Text>
+                                <Text style={styles.statusLabel}>Pending</Text>
+                            </View>
+                            <View style={[styles.statusCard, { borderLeftColor: COLORS.secondary }]}>
+                                <Text style={styles.statusCount}>{stats.inProgress}</Text>
+                                <Text style={styles.statusLabel}>In Progress</Text>
+                            </View>
+                            <View style={[styles.statusCard, { borderLeftColor: COLORS.success }]}>
+                                <Text style={styles.statusCount}>{stats.completed}</Text>
+                                <Text style={styles.statusLabel}>Completed</Text>
+                            </View>
+                        </View>
                     </View>
 
                     <View style={{ height: 40 }} />
@@ -251,6 +302,20 @@ export default function AdminHeatmapScreen({ onNavigate, onLogout }: AdminHeatma
             )}
         </DashboardLayout>
     );
+}
+
+// Helper function to get status color
+function getStatusColor(status: string): string {
+    switch (status) {
+        case 'completed':
+            return COLORS.success;
+        case 'in-progress':
+        case 'verification-pending':
+            return COLORS.secondary;
+        case 'pending':
+        default:
+            return COLORS.warning;
+    }
 }
 
 const styles = StyleSheet.create({
@@ -424,14 +489,29 @@ const styles = StyleSheet.create({
         color: COLORS.dark,
         marginBottom: 4,
     },
-    hotspotZone: {
+    hotspotAddress: {
         fontSize: 13,
         color: COLORS.gray,
-        marginBottom: 4,
+        marginBottom: 6,
+    },
+    hotspotMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
     hotspotDate: {
         fontSize: 11,
         color: COLORS.gray,
+    },
+    statusChip: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    statusText: {
+        fontSize: 10,
+        fontWeight: '600',
+        textTransform: 'capitalize',
     },
     severityBadge: {
         paddingHorizontal: 10,
@@ -453,5 +533,36 @@ const styles = StyleSheet.create({
         color: COLORS.gray,
         marginTop: 12,
         fontSize: 14,
+    },
+    statusBreakdown: {
+        marginBottom: 24,
+    },
+    statusGrid: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    statusCard: {
+        flex: 1,
+        backgroundColor: COLORS.white,
+        padding: 16,
+        borderRadius: 12,
+        borderLeftWidth: 4,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    statusCount: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: COLORS.dark,
+        marginBottom: 4,
+    },
+    statusLabel: {
+        fontSize: 11,
+        color: COLORS.gray,
+        fontWeight: '500',
     },
 });

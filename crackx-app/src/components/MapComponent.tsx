@@ -105,17 +105,33 @@ export const MapComponent: React.FC<MapComponentProps> = ({
 
                 {markers ? (
                     // Render Multiple Markers (Heatmap Simulation)
-                    markers.map(marker => (
-                        <Mapbox.PointAnnotation
-                            key={marker.id}
-                            id={marker.id}
-                            coordinate={[marker.longitude, marker.latitude]}
-                        >
-                            <View style={[styles.markerContainer, { opacity: 0.8 }]}>
-                                <View style={[styles.markerDot, { backgroundColor: marker.color, width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: 'white' }]} />
-                            </View>
-                        </Mapbox.PointAnnotation>
-                    ))
+                    markers.map((marker, index) => {
+                        // Add slight random offset to prevent perfect overlap
+                        const offsetLat = (Math.random() - 0.5) * 0.0001;
+                        const offsetLng = (Math.random() - 0.5) * 0.0001;
+
+                        return (
+                            <Mapbox.PointAnnotation
+                                key={marker.id}
+                                id={marker.id}
+                                coordinate={[marker.longitude + offsetLng, marker.latitude + offsetLat]}
+                            >
+                                <View style={[styles.markerContainer, { opacity: 0.9 }]}>
+                                    <View style={[
+                                        styles.markerDot,
+                                        {
+                                            backgroundColor: marker.color,
+                                            width: 16,
+                                            height: 16,
+                                            borderRadius: 8,
+                                            borderWidth: 2,
+                                            borderColor: 'white'
+                                        }
+                                    ]} />
+                                </View>
+                            </Mapbox.PointAnnotation>
+                        );
+                    })
                 ) : (
                     // Default Single User Marker (only if markers prop is not provided)
                     <Mapbox.PointAnnotation

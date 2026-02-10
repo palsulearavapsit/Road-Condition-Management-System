@@ -258,7 +258,6 @@ export default function SignupScreen({ onBackToLogin }: SignupScreenProps) {
                     <Text style={styles.infoText}>
                         Demo Credentials:{'\n'}
                         Admin: admin / admin123{'\n'}
-                        Demo (Any): demo / demo1234{'\n'}
                         RSO (Z1): rugved / rugved{'\n'}
                         RSO (Z4): deep / deep{'\n'}
                         RSO (Z8): atharva / atharva{'\n'}

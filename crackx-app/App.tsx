@@ -17,6 +17,7 @@ import CitizenHomeScreen from './src/screens/CitizenHomeScreen';
 import RSOHomeScreen from './src/screens/RSOHomeScreen';
 import RSOReviewScreen from './src/screens/RSOReviewScreen';
 import RSOReviewListScreen from './src/screens/RSOReviewListScreen';
+import RSOHeatmapScreen from './src/screens/RSOHeatmapScreen';
 import AdminHomeScreen from './src/screens/AdminHomeScreen';
 import ReportDamageScreen from './src/screens/ReportDamageScreen';
 import MyReportsScreen from './src/screens/MyReportsScreen';
@@ -40,6 +41,7 @@ type AppState =
   | 'rso-home'
   | 'rso-review-list'
   | 'rso-review'
+  | 'rso-heatmap'
   | 'admin-home'
   | 'report-damage'
   | 'my-reports'
@@ -183,7 +185,12 @@ export default function App() {
         setAppState('user-management');
         break;
       case 'Heatmap':
-        setAppState('admin-heatmap');
+        // Check user role to determine which heatmap screen to show
+        if (userRole === 'rso') {
+          setAppState('rso-heatmap');
+        } else {
+          setAppState('admin-heatmap');
+        }
         break;
       case 'Feedback':
         setAppState('admin-feedback');
@@ -281,6 +288,14 @@ export default function App() {
             report={selectedReviewReport}
             onBack={() => setAppState('rso-review-list')}
             onComplete={() => setAppState('rso-review-list')}
+            onNavigate={handleNavigate}
+            onLogout={handleLogout}
+          />
+        );
+
+      case 'rso-heatmap':
+        return (
+          <RSOHeatmapScreen
             onNavigate={handleNavigate}
             onLogout={handleLogout}
           />

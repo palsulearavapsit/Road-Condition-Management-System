@@ -67,20 +67,28 @@ export default function ComplianceDashboardScreen({ onNavigate, onLogout }: Comp
     };
 
     const getRsoStats = (rso: User) => {
-        // Filter reports by:
-        // 1. Zone match (if user is in a zone)
-        // 2. OR Explicit assignment (rsoId match)
+        // Show ALL reports associated with this RSO
+        // Include both zone-based and explicitly assigned reports
         const rsoWorkReports = reports.filter(r =>
-            (rso.zone && r.location.zone === rso.zone) ||
+            // Zone match (RSO responsible for zone)
+            (rso.zone && r.location?.zone === rso.zone) ||
+            // Explicitly assigned to this RSO
             (r.rsoId === rso.id)
         );
 
-        const total = rsoWorkReports.length;
-        const completed = rsoWorkReports.filter(r => r.status === 'completed').length;
-        const pending = rsoWorkReports.filter(r => r.status === 'pending').length;
-        const inProgress = rsoWorkReports.filter(r => r.status === 'in-progress').length;
+        // Sort by creation date (newest first)
+        const sortedReports = rsoWorkReports.sort((a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
 
-        return { total, completed, pending, inProgress, reports: rsoWorkReports };
+        const total = sortedReports.length;
+        const completed = sortedReports.filter(r => r.status === 'completed').length;
+        const pending = sortedReports.filter(r => r.status === 'pending').length;
+        const inProgress = sortedReports.filter(r => r.status === 'in-progress').length;
+
+        console.log(`[Compliance] RSO ${rso.username} (${rso.zone}): ${total} total reports (${completed} completed, ${pending} pending, ${inProgress} in-progress)`);
+
+        return { total, completed, pending, inProgress, reports: sortedReports };
     };
 
     const openRsoDetails = (rso: User) => {

@@ -10,7 +10,7 @@ import {
     Platform
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { syncService } from '../services/sync';
+import syncService from '../services/sync';
 
 const { width } = Dimensions.get('window');
 
@@ -53,7 +53,7 @@ export default function PublicDashboardScreen({ navigation }: any) {
 
     const loadCityStats = async () => {
         try {
-            const analytics = await syncService.fetchAnalytics();
+            const analytics = await syncService.getAnalytics();
 
             // Calculate RHI for each zone
             const zoneRHI = {

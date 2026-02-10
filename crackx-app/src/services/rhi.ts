@@ -215,12 +215,20 @@ class RHIService {
 
     /**
      * Calculate detailed metrics from reports
+     * Only counts ACTIVE (pending/in-progress) reports as damages
+     * Completed reports with quality ratings provide partial recovery:
+     * - 5 stars: 100% recovery (no damage count)
+     * - 4 stars: 80% recovery (20% damage count)
+     * - 3 stars: 60% recovery (40% damage count)
+     * - 2 stars: 40% recovery (60% damage count)
+     * - 1 star: 20% recovery (80% damage count)
+     * - No rating: 50% recovery (50% damage count)
      */
     private calculateMetrics(reports: Report[]) {
         const now = new Date().getTime();
 
         const metrics = {
-            totalDamages: reports.length,
+            totalDamages: 0,
             highSeverity: 0,
             mediumSeverity: 0,
             lowSeverity: 0,
@@ -229,26 +237,58 @@ class RHIService {
         };
 
         let totalAge = 0;
+        let activeReportCount = 0;
 
         reports.forEach((report) => {
-            // Count severity
-            const severity = report.aiDetection?.severity || 'low';
-            if (severity === 'high') metrics.highSeverity++;
-            else if (severity === 'medium') metrics.mediumSeverity++;
-            else metrics.lowSeverity++;
+            const isCompleted = report.status === 'completed';
+            const rating = report.citizenRating || 0;
 
-            // Count pending repairs
+            // Calculate quality factor for completed reports
+            // 5★ = 0% damage, 4★ = 20%, 3★ = 40%, 2★ = 60%, 1★ = 80%
+            let qualityFactor = 1.0; // Default: full damage
+
+            if (isCompleted && rating > 0) {
+                // Recovery percentage based on rating
+                const recoveryPercent = (rating / 5) * 100; // 5★=100%, 4★=80%, etc.
+                qualityFactor = 1 - (recoveryPercent / 100); // Remaining damage factor
+            } else if (isCompleted && rating === 0) {
+                qualityFactor = 0.5; // No rating = 50% recovery
+            }
+
+            // Only count non-completed reports at full weight
+            // Completed reports with poor ratings still count partially
+            if (!isCompleted || qualityFactor > 0) {
+                const severity = report.aiDetection?.severity || 'low';
+
+                // Add fractional damage based on quality
+                const damageWeight = isCompleted ? qualityFactor : 1.0;
+
+                metrics.totalDamages += damageWeight;
+
+                if (severity === 'high') {
+                    metrics.highSeverity += damageWeight;
+                } else if (severity === 'medium') {
+                    metrics.mediumSeverity += damageWeight;
+                } else {
+                    metrics.lowSeverity += damageWeight;
+                }
+
+                // Calculate age for reports that still impact RHI
+                if (damageWeight > 0) {
+                    const reportDate = new Date(report.createdAt).getTime();
+                    const ageInDays = (now - reportDate) / (1000 * 60 * 60 * 24);
+                    totalAge += ageInDays * damageWeight;
+                    activeReportCount += damageWeight;
+                }
+            }
+
+            // Count pending repairs (pending + in-progress)
             if (report.status === 'pending' || report.status === 'in-progress') {
                 metrics.pendingRepairs++;
             }
-
-            // Calculate age in days
-            const reportDate = new Date(report.createdAt).getTime();
-            const ageInDays = (now - reportDate) / (1000 * 60 * 60 * 24);
-            totalAge += ageInDays;
         });
 
-        metrics.avgAge = reports.length > 0 ? totalAge / reports.length : 0;
+        metrics.avgAge = activeReportCount > 0 ? totalAge / activeReportCount : 0;
 
         return metrics;
     }

@@ -39,6 +39,7 @@ export default function Sidebar({ role, activeRoute, onNavigate, onLogout, onClo
                 return [
                     { id: 'Assigned', label: t('assigned_zone_feed'), icon: '📍' },
                     { id: 'rso-review-list', label: 'Review Reports', icon: '📝' },
+                    { id: 'Heatmap', label: 'Zone Heatmap', icon: '🔥' },
                     { id: 'Notifications', label: t('notifications'), icon: '🔔' },
                 ];
             case 'admin':

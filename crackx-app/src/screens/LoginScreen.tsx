@@ -152,7 +152,6 @@ export default function LoginScreen({ onLoginSuccess, onSignupClick }: LoginScre
                     <Text style={styles.infoText}>
                         Available Logins:{'\n'}
                         Admin: admin / admin123{'\n'}
-                        Demo (Any): demo / demo1234{'\n'}
                         RSO (Z1): rugved / rugved{'\n'}
                         RSO (Z4): deep / deep{'\n'}
                         RSO (Z8): atharva / atharva{'\n'}
